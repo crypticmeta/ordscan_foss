@@ -182,7 +182,7 @@ function Orderbook() {
             <Slider {...settings} className="w-full">
               {orderbook
                 .map((item: any, idx: number) => {
-                  if (idx < 40 || !item.price ||!item.number) return <Card key={item.id} item={item} />;
+                  if (idx < 40 && item.price && item.number) return <Card key={item.id} item={item} />;
                 })}
             </Slider>
           ) : (
@@ -255,7 +255,7 @@ const Card = ({ item }) => {
               <div className="pb-1 text-xs lg:text-lg flex items-center text-white">
                 {" "}
                 <FaBitcoin className="text-yellow-500 mr-3" />{" "}
-                {satToBtc(Number(price)).toFixed(3)}
+                {satToBtc(Number(price)).toFixed(4)}
               </div>
               <button className="bg-brand_blue rounded hover:bg-blue-800 text-white uppercase font-thin px-2 py-1 text-xs">
                 Buy Now
