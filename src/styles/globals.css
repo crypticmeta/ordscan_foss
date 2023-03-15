@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*{
+  font-family: 'KallistoBold'; 
+}
+iframe {
+  overflow: hidden;
+    overflow-clip-margin: content-box !important;
+    border-width: 2px;
+    border-style: inset;
+    border-color: initial;
+    border-image: initial;
+    overflow: clip !important;
+    aspect-ratio: 1 / 1;
+    border: none;
+}
+
+.services-gradient{
+background: rgb(6,46,57);
+background: radial-gradient(circle, rgba(6,46,57,1) 0%, rgba(2,0,36,1) 100%);
+}
+.custom-container{
+  @apply p-6  lg:px-24 2xl:px-36;
+}
+.gradient{
+  background: hsla(350, 69%, 50%, 1);
+
+background: linear-gradient(135deg, hsla(350, 69%, 50%, 1) 25%, hsla(219, 87%, 55%, 1) 100%, hsla(219, 87%, 55%, 1) 100%);
+
+background: -moz-linear-gradient(135deg, hsla(350, 69%, 50%, 1) 25%, hsla(219, 87%, 55%, 1) 100%, hsla(219, 87%, 55%, 1) 100%);
+
+background: -webkit-linear-gradient(135deg, hsla(350, 69%, 50%, 1) 25%, hsla(219, 87%, 55%, 1) 100%, hsla(219, 87%, 55%, 1) 100%);
+
+filter: progid: DXImageTransform.Microsoft.gradient( startColorstr="#D82744", endColorstr="#296FF0", GradientType=1 );
+}
+
+.gradient-text{
+  background: -webkit-linear-gradient(0deg, hsla(350, 69%, 50%, 1) 25%, hsla(219, 87%, 55%, 1) 100%, hsla(219, 87%, 55%, 1) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.inside-gradient{
+ -webkit-box-shadow: inset 0px -115px 72px -29px rgba(40,136,214,1);
+-moz-box-shadow: inset 0px -115px 72px -29px rgba(40,136,214,1);
+box-shadow: inset 0px -115px 72px -29px rgba(40,136,214,1);
+}
+
+/* example: override wallet button style */
+.wallet-adapter-button:not([disabled]):hover {
+ @apply bg-brand_blue;
+}
+/* example: override wallet button style */
+.wallet-adapter-modal-list .wallet-adapter-button{
+ @apply bg-transparent text-white border-none text-left;
+}
+.wallet-adapter-modal-list .wallet-adapter-button:hover{
+ @apply text-black border-none;
+}
+.wallet-adapter-dropdown {
+ @apply w-full;
+}
+.wallet-adapter-button {
+ @apply bg-brand_blue border-solid rounded-3xl border-4 w-full text-center text-lg font-extrabold center border-black text-black;
+}
+.wallet-adapter-dropdown .wallet-adapter-button{
+  color: black !important;
+}
+
+
+.center{
+  @apply flex items-center justify-center;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+body::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+body {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+
+/* width */
+.small-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+/* track */
+.small-scrollbar::-webkit-scrollbar-track{
+  background-color: rgb(73, 61, 48);
+}
+
+/* handle */
+.small-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 163, 62);
+}
+/* handle on hover */
+.small-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(201, 107, 7);
+}
+
+@font-face {
+  font-family:"KallistoBold" ;
+  src: url("/assets/fonts/KallistoBold.ttf");
+}
+
+.kallistoBold{
+  font-family: 'KallistoBold';
+}
+
+
+
+.MuiOutlinedInput-root{
+  border-radius: 15px;
+  background-color: #0c0d0c;
+}
+
+/* //dots */
+.slick-dots li{
+  margin-left: 10px;
+ }
+ .slick-dots .slick-active button::before{
+  color: white !important;
+  opacity: 1;
+ }
+.slick-dots li button::before{
+  font-size: 100px;
+  content: "-";
+  color: white;
+}
