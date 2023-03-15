@@ -608,9 +608,8 @@ export async function signPSBTUsingWalletAndBroadcast(
   successMessage = "signed transaction successfully"
 ) {
   try {
-    await unisat.requestAccounts();
+    const accounts = await unisat.requestAccounts();
     const signedPsbt = await unisat.signPsbt(base64ToHex(psbt));
-    console.log(signedPsbt, 'spdbt')
     const txHex = bitcoin.Psbt.fromHex(signedPsbt).extractTransaction().toHex();
 
     const res = await fetch(`${baseMempoolApiUrl}/tx`, {
@@ -619,6 +618,13 @@ export async function signPSBTUsingWalletAndBroadcast(
     });
     console.log(res, 'response')
     if (res.status != 200) {
+      return {
+        message: `Mempool API returned ${res.status} ${
+          res.statusText
+        }\n\n${await res.text()}`,
+
+        status: "error",
+      };
       return alert(
         `Mempool API returned ${res.status} ${
           res.statusText
@@ -637,7 +643,7 @@ export async function signPSBTUsingWalletAndBroadcast(
     // alert("Transaction signed and broadcasted to mempool successfully");
     // window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
   } catch (e) {
-    console.error(e);
+    console.error(e, 'ERRRRR');
     // alert(e);
      return { status: "error", message: e.message };
   }

@@ -132,7 +132,7 @@ function Orderbook() {
   useEffect(() => {
     if(!orderbook)
     connectRelay();
-  }, [orderbook]);
+  }, [connectRelay, orderbook]);
   var settings = {
     nextArrow: <NextArrow />,
     prevArrow: <PrevArrow />,
