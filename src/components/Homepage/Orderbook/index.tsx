@@ -19,6 +19,7 @@ import { FaBitcoin } from "react-icons/fa";
 import { setOrderbook, setOrderbookLoading } from "stores/reducers/orderbookSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "stores";
+import { filter } from "cheerio/lib/api/traversing";
 const nostrRelayUrl = "wss://nostr.openordex.org";
 const nostrOrderEventKind = 802;
 function Orderbook() {
@@ -47,7 +48,7 @@ function Orderbook() {
     });
     await relay.connect();
     let events = await relay.list([
-      { kinds: [nostrOrderEventKind], limit: 500 },
+      { kinds: [nostrOrderEventKind], limit: 50 },
     ]);
     const filteredOrders = events
       .filter((a) => !a.content.includes("PSBTGOESHERE"))
@@ -86,6 +87,8 @@ function Orderbook() {
     }
 
     try {
+      // console.log(filteredOrders, 'FO')
+      //verifies PSBT before showing on frontend
       await Promise.all(
         filteredOrders
           .sort((a, b) => b.created_at - a.created_at)
@@ -93,7 +96,7 @@ function Orderbook() {
             const inscriptionId = order.tags.find((x) => x?.[0] == "i")[1];
             if (
               latestOrders.find((x) => x.inscriptionId == inscriptionId) ||
-              // latestOrders.length >= 40 ||
+              latestOrders.length >= 40 ||
               flagged.includes(inscriptionId)
             ) {
               //inscriptionId alreday stored in latestOrder array
@@ -117,13 +120,14 @@ function Orderbook() {
             }
           })
       );
+      console.log(latestOrders, 'LO')
       dispatch(setOrderbook(latestOrders.sort((a,b)=>b.created_at-a.created_at)));
       setListing(latestOrders);
        dispatch(setOrderbookLoading(false));
     } catch (e) {
        dispatch(setOrderbookLoading(false));
     }
-  }, []);
+  }, [dispatch, relay]);
 
   useEffect(() => {
     if(!orderbook)

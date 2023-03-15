@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { relayInit } from "nostr-tools";
-import { getInscriptionDataById, nostrOrderEventKind, nostrRelayUrl, satToBtc, validateSellerPSBTAndExtractPrice } from "utils";
+import { nostrOrderEventKind, nostrRelayUrl, satToBtc, validateSellerPSBTAndExtractPrice } from "utils";
 import copy from "copy-to-clipboard";
 import { shortForm } from "utils/shortForm";
 import { BsDownload, BsFillPatchCheckFill } from "react-icons/bs";
@@ -136,57 +136,16 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
     const relay = relayInit(nostrRelayUrl);
 
     const list = [];
-
-    if (
-      !orderbook ||
-      orderbook.length < 50 ||
-      new Date().valueOf() - lastUpdated > 3600000
-    ) {
-      relay.on("connect", () => {
-        console.log(`connected to ${relay.url}`);
-      });
-      relay.on("error", () => {
-        console.error(`failed to connect to ${relay.url}`);
-      });
-      await relay.connect();
-      events = await relay.list([{ kinds: [nostrOrderEventKind], limit: 500 }]);
-      events = events
-        .filter((a) => !a.content.includes("PSBTGOESHERE"))
-        .filter((a) => !a.content.startsWith("02000000"))
-        .filter((a) => !a.content.startsWith("01000000"))
-        .filter((a) => a.tags[0].includes("mainnet"))
-        .sort((a, b) => b.created_at - a.created_at);
-      
-        await Promise.all(
-          events
-            .sort((a, b) => b.created_at - a.created_at)
-            .map(async (order: any) => {
-              const inscriptionId = order.tags.find((x) => x?.[0] == "i")[1];
-              
-                const inscriptionData = await getInscriptionDataById(
-                  inscriptionId
-                );
-                const validatedPrice: any = validateSellerPSBTAndExtractPrice(
-                  order.content,
-                  inscriptionData.output
-                );
-                if (validatedPrice.error) {
-                } else if (validatedPrice) {
-                  order.number = inscriptionData.number;
-                  order.inscriptionId = inscriptionId;
-                  order.price = validatedPrice;
-                  order.type = inscriptionData["content type"];
-                  order.inscription = inscriptionData;
-                }
-             
-            })
-        );
-      
-
-      dispatch(setOrderbook(events));
-    } else {
-      events = orderbook;
-    }
+    relay.on("connect", () => {
+      console.log(`connected to ${relay.url}`);
+    });
+    relay.on("error", () => {
+      console.error(`failed to connect to ${relay.url}`);
+    });
+    await relay.connect();
+    events = await relay.list([
+      { kinds: [nostrOrderEventKind], "#u": [data?.output.split("/")[2]] },
+    ]);
     events = events
       .filter((a) => !a.content.includes("PSBTGOESHERE"))
       .filter((a) => !a.content.startsWith("02000000"))
@@ -236,14 +195,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
         if (parsedData) setSaleData(parsedData);
       } catch (e) {}
     }
-  }, [
-    checkValidity,
-    data.id,
-    data.output,
-    orderbook,
-    parseNostr,
-    router.query.signedpsbt,
-  ]);
+  }, [checkValidity, data.id, data.output, parseNostr, router.query.signedpsbt]);
 
   useEffect(() => {
     connectRelay();
@@ -416,7 +368,9 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
                 <AiOutlineCopy
                   className="text-xl ml-3 cursor-pointer"
                   onClick={() =>
-                    copy(data.id, { message: "copied to clipboard" })
+                    copy(data?.output.split("/")[2], {
+                      message: "copied to clipboard",
+                    })
                   }
                 />
               </p>
@@ -484,7 +438,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
         {saleData?.signedPsbt && saleData?.price && !loading ? (
           <Buy data={data} saleData={saleData} />
         ) : (
-            <Sale data={data} setSaleData={setSaleData} />
+          <Sale data={data} setSaleData={setSaleData} />
           // <></>
         )}
         <div className="flex justify-center">

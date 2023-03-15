@@ -39,7 +39,7 @@ function Orderbook() {
       console.log(`failed to connect to ${relay.url}`);
     });
     await relay.connect();
-    let events = await relay.list([{ kinds: [nostrOrderEventKind] }]);
+    let events = await relay.list([{ kinds: [nostrOrderEventKind], limit: 100 }]);
     const filteredOrders = events
       .filter((a) => !a.content.includes("PSBTGOESHERE"))
       .filter((a) => !a.content.startsWith("02000000"))
@@ -143,7 +143,7 @@ function Orderbook() {
     _DATA.jump(p);
   };
 
-  // console.log(_DATA.currentData(), '_DATA')
+  console.log(orderbook, '_DATA')
   return (
     <div className=" py-14 lg:py-0  overflow-hidden">
       <div className="">
