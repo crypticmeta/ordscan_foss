@@ -54,6 +54,7 @@ function CollectionPage() {
         )
         .then((res) => {
           let inscriptions_list = res.data.data.inscriptions;
+          if(orderbook)
           inscriptions_list.map(item => {
             const presentInOrderbook = orderbook.filter(a => a.inscriptionId === item.id)
             if (presentInOrderbook.length) {
