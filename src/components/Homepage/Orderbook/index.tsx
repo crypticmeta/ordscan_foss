@@ -14,12 +14,10 @@ import {
 } from "utils";
 import axios from 'axios'
 import moment from "moment";
-import { processSellerPsbt } from "utils/Ordinals/buyOrdinal";
 import { FaBitcoin } from "react-icons/fa";
 import { setOrderbook, setOrderbookLoading } from "stores/reducers/orderbookSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "stores";
-import { filter } from "cheerio/lib/api/traversing";
 const nostrRelayUrl = "wss://nostr.openordex.org";
 const nostrOrderEventKind = 802;
 function Orderbook() {
@@ -130,7 +128,7 @@ function Orderbook() {
   }, [dispatch, relay]);
 
   useEffect(() => {
-    if(!orderbook)
+    if(!orderbook.length)
     connectRelay();
   }, [connectRelay, orderbook]);
   var settings = {
