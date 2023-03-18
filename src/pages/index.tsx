@@ -4,7 +4,6 @@ import Featured from "components/Homepage/Featured";
 import Recent from "components/Homepage/Recent";
 import Orderbook from "components/Homepage/Orderbook";
 import Collections from "components/Homepage/Collections";
-import Hooks from "components/Homepage/Hooks";
 function Explorer({ data }) {
   return (
     <div className="custom-container  text-white">
@@ -51,7 +50,7 @@ export async function getServerSideProps({req, res}) {
     const response3 = (await res3?.json()) || {};
 
     data = {
-      recent: response?.rss.channel.item.slice(0, 11) || [],
+      recent: response?.rss?.channel?.item.slice(0, 11) || [],
       featuredCollections:
         response3.data.collections.filter((a) => a.featured) || [],
       collections:
