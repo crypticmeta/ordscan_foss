@@ -128,7 +128,7 @@ function Orderbook() {
   }, [dispatch, relay]);
 
   useEffect(() => {
-    if(!orderbook.length)
+    if(!orderbook?.length)
     connectRelay();
   }, [connectRelay, orderbook]);
   var settings = {
