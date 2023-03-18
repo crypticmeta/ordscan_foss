@@ -89,11 +89,12 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
 
   const checkValidity = useCallback(
     (signedPSBT) => {
-      const result:any = validateSellerPSBTAndExtractPrice(signedPSBT, data.output.split("/")[2]);
+      const result: any = validateSellerPSBTAndExtractPrice(signedPSBT, data.output.split("/")[2]);
+      // console.log(result, 'validity check result')
       if (result?.error)
         return false
       else
-      return true;
+      return result;
     },
     [data.output]
   );
@@ -167,12 +168,15 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
       const tempSaleData = {
         id: data.id,
         inscriptionId: data.id,
-        price: satToBtc(Number(0)),
+        price: satToBtc(checkValidity(router.query.signedpsbt)),
         signedPsbt: router.query.signedpsbt + "",
         createdAt: new Date().toDateString(),
         type: "sell",
         utxo: data.output.split("/")[2],
       };
+      // console.log(tempSaleData, 'TSD')
+      const valid = checkValidity(router.query.signedpsbt)
+      tempSaleData.price = satToBtc(valid);
       setSaleData(tempSaleData);
     } else if (tempList[0]) {
       try {
