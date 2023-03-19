@@ -477,8 +477,8 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
           <></>
         )} */}
         {saleData?.signedPsbt && saleData?.price && !loading ? (
-          // <Buy data={data} saleData={saleData} />
-          <></>
+          <Buy data={data} saleData={saleData} />
+          // <></>
         ) : (
           <Sale data={data} setSaleData={setSaleData} />
           // <></>

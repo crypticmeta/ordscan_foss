@@ -1,7 +1,7 @@
 import React, { useCallback,  useContext,  useEffect,  useState } from "react";
 import copy from "copy-to-clipboard";
 import Modal from "@mui/material/Modal";
-import { TextField } from "@mui/material";
+import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, TextField } from "@mui/material";
 import Link from "next/link";
 import { addressHasTxInMempool, base64ToHex, baseMempoolApiUrl, getAddressMempoolTxIds, range, signPSBTUsingWallet, signPSBTUsingWalletAndBroadcast } from "../../../utils";
 import { notify } from "utils/notifications";
@@ -42,7 +42,7 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
 
   //hiro-sign
   const [signedPsbt, setSignedPsbt] = useState("")
-  const [signedB64PSBT,setSignedB64PSBT] = useState("");
+  const [signedB64PSBT, setSignedB64PSBT] = useState("");
     const signTx = useCallback(
       async (options: PsbtRequestOptions, network?: any) => {
         {
@@ -217,7 +217,7 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
           Buy this Inscription for {saleData?.price?.toFixed(5)} BTC
           {/* <span className="text-xs text-brand_red"> Beta</span> */}
         </button>
-        <button
+        {/* <button
           onClick={() => {
             Mixpanel.track("ReferredToOpenOrdex", { data, saleData });
           }}
@@ -229,7 +229,7 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
           >
             Buy on Openordex
           </Link>
-        </button>
+        </button> */}
       </div>
 
       {open ? (
@@ -248,12 +248,82 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
                 </span>{" "}
                 For {saleData.price.toFixed(5)} BTC
               </h2>
-              {psbt ? (
+              {!psbt ? (
+                <div className="form p-6 text-white">
+                  <div>
+                    <TextField
+                      id="filled-basic"
+                      label="Buyer Address"
+                      variant="filled"
+                      fullWidth
+                      value={payAddr}
+                      onChange={(e) => setPayAddr(e.target.value)}
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <TextField
+                      id="filled-basic"
+                      label="Receive Inscription Address"
+                      variant="filled"
+                      fullWidth
+                      value={receiveAddr}
+                      onChange={(e) => setReceiveAddr(e.target.value)}
+                    />
+                  </div>
+                  {wallets?.length > 0 && (
+                    <div className="pt-4">
+                      <FormControl>
+                        <FormLabel id="demo-radio-buttons-group-label">
+                          Select Wallet
+                        </FormLabel>
+                        <RadioGroup
+                          aria-labelledby="demo-controlled-radio-buttons-group"
+                          name="controlled-radio-buttons-group"
+                          value={selectedWallet}
+                          onChange={(e) => {
+                            const item = e.target.value;
+                            if (item === "Hiro") {
+                              !state?.userData && doOpenAuth();
+                            }
+                            setSelectedWallet(item);
+                          }}
+                        >
+                          {wallets.map((item, idx) => (
+                            <FormControlLabel
+                              key={item + idx}
+                              value={item}
+                              control={<Radio />}
+                              color="inherit"
+                              label={item + " wallet"}
+                            />
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                    </div>
+                  )}
+                </div>
+              ) : (
                 <div className="form p-2">
                   <div>
                     <TextField
                       id="filled-basic"
-                      label="Sign and broadcast this tx to create dummy UTXO"
+                      label={
+                        result?.for === "Buying" ? (
+                          <>
+                            Created PSBT for buying inscription #
+                            <span className="inscriptionNumber">
+                              {data?.inscription_number}
+                            </span>{" "}
+                            for{" "}
+                            <span className="price">
+                              {saleData?.price || 0.1}{" "}
+                            </span>
+                            BTC:
+                          </>
+                        ) : (
+                          <>PSBT generated to create Padding UTXO</>
+                        )
+                      }
                       variant="filled"
                       fullWidth
                       multiline
@@ -278,9 +348,21 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
                     </div>
                     <div className="flex flex-col justify-end items-end flex-wrap">
                       <p className="w-full mx-6 my-2 z-[1] left-0 bg-brand_black text-white text-xl ">
-                        {result?.for === "utxo"
-                          ? " This TX will generate dummy UTXO. Redo the process once this TX is confirmed."
-                          : "Sign this Transaction to buy the Ordinal"}
+                        {result?.for === "Buying" ? (
+                          <>
+                            Created PSBT for buying inscription #
+                            <span className="inscriptionNumber">
+                              {data?.inscription_number}
+                            </span>{" "}
+                            for{" "}
+                            <span className="price">
+                              {saleData?.price || 0.1}{" "}
+                            </span>
+                            BTC:
+                          </>
+                        ) : (
+                          <>PSBT generated to create Padding UTXO</>
+                        )}
                       </p>
 
                       {/* <button
@@ -305,29 +387,6 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
                       </button>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="form p-6">
-                  <div>
-                    <TextField
-                      id="filled-basic"
-                      label="Buyer Address"
-                      variant="filled"
-                      fullWidth
-                      value={buyerAddr}
-                      onChange={(e) => setBuyerAddr(e.target.value)}
-                    />
-                  </div>
-                  {/* <div className="mb-4">
-                  <TextField
-                    id="filled-basic"
-                    label="Receive Inscription Address"
-                    variant="filled"
-                    fullWidth
-                    value={buyerAddr}
-                    // onChange={(e) => setPrice(e.target.value)}
-                  />
-                </div> */}
                 </div>
               )}
               {!psbt ? (

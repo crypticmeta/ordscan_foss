@@ -225,7 +225,7 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
     const tempSaleData = {
       id: data.id,
       inscriptionId: data.id,
-      price,
+      price: Number(price),
       signedPsbt: result.data.signedPSBT,
       createdAt: new Date().toDateString(),
       type: "sell",
