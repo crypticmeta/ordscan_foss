@@ -38,24 +38,13 @@ const App: FC<AppProps> = ({ Component, pageProps }) => {
   const [ip, setIP] = useState("");
   const getData = async()=>{
         const res = await axios.get('https://geolocation-db.com/json/')
-    setIP(res.data.IPv4)
-      Mixpanel.identify(res.data.IPv4);
+    setIP(res.data.IPv4||"none")
+    if (res.data.IPv4) Mixpanel.identify(res.data.IPv4);
     }
   useEffect(() => {
     getData()
   }, [])
 
-    const [loading, setLoading] = useState(false);
-    useEffect(() => {
-      Router.events.on("routeChangeStart", () => setLoading(true));
-      Router.events.on("routeChangeComplete", () => setLoading(false));
-      Router.events.on("routeChangeError", () => setLoading(false));
-      return () => {
-        Router.events.off("routeChangeStart", () => setLoading(true));
-        Router.events.off("routeChangeComplete", () => setLoading(false));
-        Router.events.off("routeChangeError", () => setLoading(false));
-      };
-    }, [Router.events]);
   
     function getInstalledWalletName() {
       const wallets = [];
@@ -75,10 +64,42 @@ const App: FC<AppProps> = ({ Component, pageProps }) => {
       // }
       localStorage.setItem("btc-wallets", JSON.stringify(wallets));
     }
-
+    const [loading, setLoading] = useState(false);
     useEffect(() => {
-      getInstalledWalletName();
-    }, [state]);
+      Router.events.on("routeChangeStart", () => {
+        getInstalledWalletName();
+        setLoading(true)
+      });
+      Router.events.on("routeChangeComplete", () => {
+        getInstalledWalletName();
+        setLoading(false)
+      });
+      Router.events.on("routeChangeError", () => {
+        getInstalledWalletName();
+        setLoading(false)
+      });
+      return () => {
+        Router.events.off("routeChangeStart", () => {
+          getInstalledWalletName();
+          setLoading(true)
+        });
+        Router.events.off("routeChangeComplete", () => {
+          getInstalledWalletName();
+          setLoading(false)
+        });
+        Router.events.off("routeChangeError", () => {
+          getInstalledWalletName();
+          setLoading(false)
+        });
+      };
+    }, [Router.events]);
+  
+  useEffect(() => { 
+  getInstalledWalletName()
+  }, [ip])
+  
+  
+
   
     return (
       <ThemeProvider theme={darkTheme}>

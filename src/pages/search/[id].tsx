@@ -110,6 +110,9 @@ export async function getServerSideProps({ params, req, res }) {
   } catch (e) {
     console.log(e, "ERR");
   }
+  if (data?.output?.includes("/")) {
+    data.output = data.output.split("/")[2];
+  }
   return {
     props: { data },
   };

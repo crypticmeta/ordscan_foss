@@ -1,43 +1,111 @@
-import React, { useCallback,  useState } from "react";
+import React, { useCallback,  useContext,  useEffect,  useState } from "react";
 import copy from "copy-to-clipboard";
 import Modal from "@mui/material/Modal";
 import { TextField } from "@mui/material";
 import Link from "next/link";
-import { addressHasTxInMempool, getAddressMempoolTxIds, signPSBTUsingWalletAndBroadcast } from "../../../utils";
+import { addressHasTxInMempool, base64ToHex, baseMempoolApiUrl, getAddressMempoolTxIds, range, signPSBTUsingWallet, signPSBTUsingWalletAndBroadcast } from "../../../utils";
 import { notify } from "utils/notifications";
 import QRCode from "react-qr-code";
 import { Inscription, Order } from "types";
 import { buyInscriptionPSBT } from "utils/Ordinals/buyOrdinal";
 import { Mixpanel } from "utils/mixpanel";
 const baseMempoolUrl = "https://mempool.space";
+
+
+import * as bitcoin from "bitcoinjs-lib";
+import secp256k1 from "@bitcoinerlab/secp256k1";
+import { AppContext } from "common/context";
+import {
+  PsbtData,
+  PsbtRequestOptions,
+  useConnect,
+} from "@stacks/connect-react";
+import { stacksMainnetNetwork } from "common/utils";
+bitcoin.initEccLib(secp256k1);
 interface OrdinalProp {
   data: Inscription;
   saleData: Order;
 }
 function Buy({ data, saleData }: OrdinalProp): JSX.Element {
-  const [buyerAddr, setBuyerAddr] = useState("");
+ //wallets  
+  const state = useContext(AppContext);
+  const { doOpenAuth, signPsbt } = useConnect();
+  const [wallets, setwallets] = useState([]);
+  const [selectedWallet, setSelectedWallet] = useState(null);
+
+  //buy
+  const [receiveAddr, setReceiveAddr] = useState("");
+  const [payAddr, setPayAddr] = useState("");
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<any>({});
   const [psbt, setPSBT] = useState("");
+
+  //hiro-sign
+  const [signedPsbt, setSignedPsbt] = useState("")
+  const [signedB64PSBT,setSignedB64PSBT] = useState("");
+    const signTx = useCallback(
+      async (options: PsbtRequestOptions, network?: any) => {
+        {
+          const defaultNetwork = stacksMainnetNetwork;
+
+          return await signPsbt({
+            ...options,
+            network: network || defaultNetwork,
+            onFinish: async (data: PsbtData) => {
+              //sets signed psbt data in hex format
+              setSignedPsbt(data.hex);
+              return data.hex;
+              //  publishPSBT()
+            },
+            onCancel: () => {
+              console.log("popup closed!");
+            },
+          });
+        }
+      },
+      [signPsbt]
+    );
+
+
+  //getAddressFromHiroWallet
+    useEffect(() => {
+      if (selectedWallet === "Hiro" && state) {
+        const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
+          const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
+        setPayAddr(cardinal);
+        setReceiveAddr(ordinal);
+      }
+    }, [selectedWallet, state]);
+  
+    useEffect(() => {
+      if (localStorage.getItem("btc-wallets")) {
+        setwallets(JSON.parse(localStorage.getItem("btc-wallets")) || []);
+      }
+    }, [data, selectedWallet]);
+  
+  
   const handleOpen = () => {
-    if (localStorage.getItem("payerAddress")) {
-      setBuyerAddr(localStorage.getItem("payerAddress"));
-    } 
     setOpen(true);
   };
   const handleClose = () => setOpen(false);
   const buy = async () => {
-    if (await addressHasTxInMempool(buyerAddr)) {
+    if (!payAddr || !receiveAddr) {
+      notify({ type: "error", message: "Needs both address" });
+      return;
+    }
+    if (await addressHasTxInMempool(payAddr)) {
       handleClose();
       notify({ type: "error", message: "Previous Tx is yet to confirm." });
       return;
     }
     const result = await buyInscriptionPSBT(
-      buyerAddr,
+      payAddr,
+      receiveAddr,
+      selectedWallet,
       Number(saleData.price),
-      data.output.split("/")[2],
+      data.output,
       data.inscription_number,
-      Number(data.output_value),
+      Number(data["output value"]),
       saleData.signedPsbt
     );
     if (result.status === "error") {
@@ -46,54 +114,98 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
     } else if (result.status === "success") {
       setPSBT(result.data.psbt);
       setResult(result.data);
-      Mixpanel.track("BuyPSBTGenerated", { data, saleData, psbt: result.data.psbt });
+      //if psbt is present and a wallet has been selected, it will request signature
+      if (result.data.psbt && selectedWallet) {
+        await signWithAvailableWallet(selectedWallet, result.data.psbt);
+      }
       // waitForTx();
     }
   };
 
-  // const waitForTx = useCallback(async () => {
-  //   // handleClose();
-  //   const payerCurrentMempoolTxIds = await getAddressMempoolTxIds(buyerAddr);
-  //   notify({ type: "info", message: "waiting for tx in mempool" });
-  //   const interval = setInterval(async () => {
-  //     const txId = (await getAddressMempoolTxIds(buyerAddr)).find(
-  //       (txId) => !payerCurrentMempoolTxIds.includes(txId)
-  //     );
-
-
-  //     if (txId) {
-  //       {
-  //         clearInterval(interval);
-  //         Mixpanel.track("Bought", {data,saleData, purchaseTx: txId});
-  //         notify({
-  //           type: "success",
-  //           message: `Buy Ordinal Tx Confimed. check <a href="${baseMempoolUrl}/tx/${txId}" target="_blank">here</a>.`,
-  //         });
-  //       }
-  //     }
-  //   }, 5_000);
-  // }, [buyerAddr, data, saleData]);
-
     
-  const signWithUnisatWallet = useCallback(async () => {
-    //@ts-ignore
-    const unisat: any = window?.window?.unisat || null;
-    if (!unisat) {
-      notify({ type: "error", message: "No unisat extension found" });
-    }
+ const signWithAvailableWallet = useCallback(
+   async (wallet, psbt) => {
+     let result = null;
+     if (wallet === "Unisat") result = await signPSBTUsingWallet(psbt, wallet);
+     else if (wallet === "Hiro") {
+       result = await signTx({
+         hex: base64ToHex(psbt),
+         allowedSighash: [0x01, 0x02, 0x03, 0x81, 0x82, 0x83],
+         signAtIndex: range(bitcoin.Psbt.fromBase64(psbt).inputCount),
+       });
+     }
 
-    const result: any = await signPSBTUsingWalletAndBroadcast(psbt, unisat);
+     if (result?.status === "error") {
+       notify({ type: "error", message: result.message });
+     } else {
+       try {
+         if (result?.data?.signedPSBT != psbt) {
+           setSignedPsbt(result.data.signedPSBT);
+         }
+         // await publishPSBT(result?.data?.signedPSBT);
+       } catch (e) {
+         console.log(e, "error publishing");
+       }
+     }
+   },
+   [signTx]
+ );
 
-    if (result.status === "error") {
-      notify({ type: "error", message: result.message });
-    } else {
-      handleClose();
-      notify({
-        type: "success",
-        message: "Tx successfully broadcasted. TXID: " + result.data.tx,
-      });
-    }
-  }, [psbt]);
+  const signedPsbtDataToB64 = useCallback(async () => {
+    const b64 = bitcoin.Psbt.fromHex(signedPsbt, {
+      network: undefined,
+    }).toBase64();
+    if(b64)
+      setSignedB64PSBT(b64);
+    }, [signedPsbt]);
+
+    useEffect(() => {
+      //converts available signedHePSBT to Base64 format for easy copy and ordscan, openordex link
+      if (signedPsbt && psbt) {
+        signedPsbtDataToB64();
+      }
+    }, [signedPsbt, psbt, signedPsbtDataToB64]);
+  
+  const broadcastTx = useCallback(
+    async() => {
+      try {
+         const psbt = bitcoin.Psbt.fromHex(signedPsbt);
+         if (selectedWallet == "Hiro") {
+           for (let i = 0; i < psbt.data.inputs.length; i++) {
+             try {
+               psbt.finalizeInput(i);
+             } catch (e) {
+               console.error(e);
+             }
+           }
+         }
+        const txHex = psbt.extractTransaction().toHex();
+        console.log(txHex, 'TXHEX')
+        //TODO: remove below line to enable Broadcasting TX
+        return 0
+         const res = await fetch(`${baseMempoolApiUrl}/tx`, {
+           method: "post",
+           body: txHex,
+         });
+         if (res.status != 200) {
+           return alert(
+             `Mempool API returned ${res.status} ${
+               res.statusText
+             }\n\n${await res.text()}`
+           );
+         }
+
+         const txId = await res.text();
+         alert("Transaction signed and broadcasted to mempool successfully");
+         window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
+       }
+      catch (e) {
+        console.error(e);
+        alert(e);
+      }
+    },
+    [selectedWallet, signedPsbt],
+  )
 
   return (
     <>
