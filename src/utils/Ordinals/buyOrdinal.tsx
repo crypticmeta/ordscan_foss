@@ -29,7 +29,9 @@ let paymentUtxos;
 const numberOfDummyUtxosToCreate = 1;
 const feeLevel = "hourFee";
 export const buyInscriptionPSBT = async (
-  buyerAddr: string,
+  paymentAddr: string,
+  receiveAddr: string,
+  wallet: string,
   price: any,
   output: string,
   number: string,
@@ -39,11 +41,11 @@ export const buyInscriptionPSBT = async (
   await processSellerPsbt({ output, signedPsbt: signedPSBT });
   price = validateSellerPSBTAndExtractPrice(signedPSBT, output);
   if (price?.error) {
-    return ({status:"error", message: price?.error})
+    return { status: "error", message: price?.error };
   }
   price = satToBtc(Number(price));
-  const payerAddress = buyerAddr;
-  const receiverAddress = buyerAddr;
+  const payerAddress = paymentAddr;
+  const receiverAddress = receiveAddr;
   localStorage.setItem("payerAddress", payerAddress);
   let payerUtxos;
   try {
@@ -52,66 +54,119 @@ export const buyInscriptionPSBT = async (
     console.error(e, " Invalid buyer address error");
     return { status: "error", message: "Invalid Address", data: {} };
   }
-  let minimumValueRequired = price + 5000;
-  let vins = 1;
-  let vouts = 2;
-  paymentUtxos = await selectUtxos(
-    payerUtxos,
-    minimumValueRequired,
-    vins,
-    vouts,
-    await recommendedFeeRate()
-  );
-  let psbt:any = await generatePSBTBuyingInscription(
-    payerAddress,
-    receiverAddress,
-    btcToSat(price),
-    paymentUtxos,
-    inscriptionOutputValue
-  );
-  if (psbt?.error) {
-    return { status: "error", message: psbt.error, data: {} };
+  let minimumValueRequired = btcToSat(price);
+  let vins = 2;
+  let vouts = 3;
+  try {
+    const utxoResult = await selectUtxos(
+      payerUtxos,
+      minimumValueRequired,
+      vins,
+      vouts,
+      await recommendedFeeRate(),
+      inscriptionOutputValue,
+      payerAddress
+    );
+    let takerUtxos, paddingUtxos;
+    console.log(utxoResult, "utxoResult");
+    if (utxoResult.status === "success") {
+      if (utxoResult?.data?.psbt) {
+        return utxoResult;
+      } else {
+        takerUtxos = utxoResult.data.takerUtxos;
+        paddingUtxos = utxoResult.data.paddingUtxos;
+      }
+    } else {
+      return utxoResult;
+    }
+
+    let psbt: any = await generatePSBTBuyingInscription(
+      payerAddress,
+      receiverAddress,
+      btcToSat(price),
+      takerUtxos,
+      paddingUtxos,
+      inscriptionOutputValue
+    );
+    if (psbt?.error) {
+      return { status: "error", message: psbt.error, data: {} };
+    }
+    return {
+      status: "success",
+      message: "Generated PSBT for buying inscription Successfully",
+      data: { psbt, for: "Buying" },
+    };
+  } catch (e) {
+    console.log(e, "error generating buy PSBT");
+    return {
+      status: "error",
+      message: "error generating buy PSBT",
+    };
   }
-  return {
-    status: "success",
-    message: "Generated PSBT for buying inscription Successfully",
-    data: { psbt, for: "buying" },
-  };
 };
 const generatePSBTBuyingInscription = async (
   payerAddress,
   receiverAddress,
   price,
-  paymentUtxos,
+  takerUtxos,
+  paddingUtxos,
   inscriptionOutputValue
 ) => {
   const psbt = new bitcoin.Psbt({ network: undefined });
-  let totalValue = 0;
-  let totalPaymentValue = 0;
-  // Add payment utxo inputs
-  for (const utxo of paymentUtxos) {
-    const tx = bitcoin.Transaction.fromHex(await getTxHexById(utxo.txid));
-    for (const output in tx.outs) {
-      try {
-        tx.setWitness(Number(output), []);
-      } catch {}
-    }
-
+  // add payment inputs
+  for (const utxo of takerUtxos) {
     psbt.addInput({
       hash: utxo.txid,
       index: utxo.vout,
-      nonWitnessUtxo: tx.toBuffer(),
-      // witnessUtxo: tx.outs[utxo.vout],
+      nonWitnessUtxo: bitcoin.Transaction.fromHex(
+        await getTxHexById(utxo.txid)
+      ).toBuffer(),
     });
-
-    totalValue += utxo.value;
-    totalPaymentValue += utxo.value;
   }
+  let inscriptionUtxoValue = inscriptionOutputValue;
 
-  // Add payer signed input
+  // add inscription input
   psbt.addInput({
     ...sellerSignedPsbt.data.globalMap.unsignedTx.tx.ins[0],
     ...sellerSignedPsbt.data.inputs[0],
+  });
+
+  // add padding inputs
+  for (const utxo of paddingUtxos) {
+    psbt.addInput({
+      hash: utxo.txid,
+      index: utxo.vout,
+      nonWitnessUtxo: bitcoin.Transaction.fromHex(
+        await getTxHexById(utxo.txid)
+      ).toBuffer(),
+    });
+  }
+
+  // add change outputs
+  let sumOfTakerUtxos = 0;
+  takerUtxos.forEach((u) => (sumOfTakerUtxos += u.value));
+  let remainingTakerUtxoChange = sumOfTakerUtxos - price;
+
+  for (let i = 0; i < takerUtxos.length; i++) {
+    if (i < takerUtxos.length - 1) {
+      psbt.addOutput({
+        address: payerAddress,
+        value: Math.ceil((sumOfTakerUtxos - price) / takerUtxos.length),
+      });
+      remainingTakerUtxoChange -= Math.ceil(
+        (sumOfTakerUtxos - price) / takerUtxos.length
+      );
+    } else {
+      psbt.addOutput({
+        address: payerAddress,
+        value: remainingTakerUtxoChange,
+      });
+    }
+  }
+
+  // add payment output
+  psbt.addOutput({
+    ...sellerSignedPsbt.data.globalMap.unsignedTx.tx.outs[0],
   });
 
   const fee = calculateFee(
@@ -119,74 +174,83 @@ const generatePSBTBuyingInscription = async (
     psbt.txOutputs.length,
     await recommendedFeeRate()
   );
+  let remainingPaddingValue = 0;
+  paddingUtxos.forEach((u) => (remainingPaddingValue += u.value));
 
-  const changeValue = totalValue - price;
-  if (changeValue < 0) {
-    return {
-      error: `Your wallet address doesn't have enough funds to buy this inscription.
-Price:          ${satToBtc(price)} BTC
-Fees:       ${satToBtc(fee)} BTC
-You have:   ${satToBtc(totalPaymentValue)} BTC
-Required:   ${satToBtc(totalValue - changeValue)} BTC
-Missing:     ${satToBtc(-changeValue)} BTC`,
-    };
-  }
-  // Change utxo
-  psbt.addOutput({
-    address: payerAddress,
-    value: changeValue,
-  });
-  // Add payer output
-  psbt.addOutput({
-    ...sellerSignedPsbt.data.globalMap.unsignedTx.tx.outs[0],
-  });
-  if (fee > (inscriptionOutputValue - 1000)) {
-    console.log(fee, 'fee')
-   return { error: "inscription Value is lower than current tx fee. Buy on Openordex instead." };
-  } else {
+  // If no added padding available, and safe to send with current fee, then send
+  console.log({ paddingUtxos, takerUtxos, fee, inscriptionOutputValue });
+  if (!paddingUtxos.length && inscriptionUtxoValue - fee > 2000) {
     psbt.addOutput({
-      address: payerAddress,
-      value: inscriptionOutputValue - fee,
+      address: receiverAddress,
+      value: inscriptionUtxoValue - fee,
     });
+    // If safe to proceed with available padding, then send
+  } else if (
+    inscriptionUtxoValue + remainingPaddingValue - fee < 10000 &&
+    inscriptionUtxoValue + remainingPaddingValue - fee > 2000
+  ) {
+    psbt.addOutput({
+      address: receiverAddress,
+      value: inscriptionUtxoValue + remainingPaddingValue - fee,
+    });
+    // If padding available to reset the 10k threshold, reset and spend change to receiver
+  } else if (inscriptionUtxoValue + remainingPaddingValue - fee > 10000) {
+    psbt.addOutput({
+      address: receiverAddress,
+      value: inscriptionUtxoValue > 10000 ? inscriptionUtxoValue : 10000,
+    });
+
+    remainingPaddingValue -= 10000 - inscriptionUtxoValue + fee;
+
+    psbt.addOutput({
+      address: receiverAddress,
+      value: remainingPaddingValue - fee,
+    });
+  } else {
+    throw new Error(
+      `Fee markets are currently very volatile.  Please add additional funds or wait.`
+    );
   }
+
   return psbt.toBase64();
 };
 
 export const processSellerPsbt = async ({ output, signedPsbt }) => {
   const sellerSignedPsbtBase64 = signedPsbt.trim().replaceAll(" ", "+");
-  try { if (sellerSignedPsbtBase64) {
-    sellerSignedPsbt = bitcoin.Psbt.fromBase64(sellerSignedPsbtBase64, {
-      network: undefined,
-    });
-    const sellerInput = sellerSignedPsbt.txInputs[0];
-    const sellerSignedPsbtInput = `${sellerInput.hash
-      .reverse()
-      .toString("hex")}:${sellerInput.index}`;
+  try {
+    if (sellerSignedPsbtBase64) {
+      sellerSignedPsbt = bitcoin.Psbt.fromBase64(sellerSignedPsbtBase64, {
+        network: undefined,
+      });
+      const sellerInput = sellerSignedPsbt.txInputs[0];
+      const sellerSignedPsbtInput = `${sellerInput.hash
+        .reverse()
+        .toString("hex")}:${sellerInput.index}`;
 
-    // console.log('checking vlidity: ', sellerSignedPsbtInput === output)
+      // console.log('checking vlidity: ', sellerSignedPsbtInput === output)
 
-    if (sellerSignedPsbtInput != output) {
-      // console.log(
-      //   `Seller signed PSBT does not match this inscription\n\n${sellerSignedPsbtInput}\n!=\n${output}`
-      // );
-      return false;
+      if (sellerSignedPsbtInput != output) {
+        // console.log(
+        //   `Seller signed PSBT does not match this inscription\n\n${sellerSignedPsbtInput}\n!=\n${output}`
+        // );
+        return false;
+      }
+
+      if (
+        sellerSignedPsbt.txInputs.length != 1 ||
+        sellerSignedPsbt.txInputs.length != 1
+      ) {
+        // console.log(`Invalid seller signed PSBT`);
+        return false;
+      }
+
+      const sellerOutput = sellerSignedPsbt.txOutputs[0];
+      const price = sellerOutput.value;
+      const sellerOutputValueBtc = satToBtc(price);
+      console.log("valid");
+      return sellerOutputValueBtc;
     }
-
-    if (
-      sellerSignedPsbt.txInputs.length != 1 ||
-      sellerSignedPsbt.txInputs.length != 1
-    ) {
-      // console.log(`Invalid seller signed PSBT`);
-      return false;
-    }
-
-    const sellerOutput = sellerSignedPsbt.txOutputs[0];
-    const price = sellerOutput.value;
-    const sellerOutputValueBtc = satToBtc(price);
-    console.log('valid')
-    return sellerOutputValueBtc;
-  }}
-  catch (e) {
-    console.error(e, 'inProcessSellerPsbt')
+  } catch (e) {
+    console.error(e, "inProcessSellerPsbt");
   }
 };

@@ -6,6 +6,7 @@ import { processSellerPsbt } from "./Ordinals/buyOrdinal";
 let sellerSignedPsbt;
 bitcoin.initEccLib(secp256k1);
 const varuint = require("bip174/src/lib/converter/varint");
+
 export function witnessStackToScriptWitness(witness) {
   let buffer = Buffer.allocUnsafe(0);
   function writeSlice(slice) {
@@ -35,15 +36,13 @@ interface Result {
   data: any;
 }
 const bitcoinPriceApiUrl = "https://blockchain.info/ticker?cors=true";
-const baseMempoolUrl = true
+export const baseMempoolUrl = true
   ? "https://mempool.space"
   : "https://mempool.space/signet";
-const baseMempoolApiUrl = `${baseMempoolUrl}/api`;
+export const baseMempoolApiUrl = `${baseMempoolUrl}/api`;
 const ordinalsExplorerUrl = process.env.NEXT_PUBLIC_PROVIDER;
 let price = 0;
 let dummyUtxoValue = 1_000;
-let paymentUtxos;
-const numberOfDummyUtxosToCreate = 1;
 const feeLevel = "hourFee";
 // Concatenates classes into a single className string
 const cn = (...args: string[]) => args.join(" ");
@@ -72,199 +71,6 @@ const numberToCurrencyString = (number: number) =>
  */
 const clamp = (current, min, max) => Math.min(Math.max(current, min), max);
 
-export const updateBuyerAddress = async (
-  buyerAddr: string,
-  price: number,
-  output: string,
-  number: string,
-  inscriptionOutputValue: number,
-  signedPSBT: string
-): Promise<Result> => {
-  await processSellerPsbt({ output, signedPsbt: signedPSBT });
-  const payerAddress = buyerAddr;
-  localStorage.setItem("payerAddress", payerAddress);
-  let payerUtxos;
-  let psbt;
-
-  try {
-    payerUtxos = await getAddressUtxos(payerAddress);
-  } catch (e) {
-    console.error(e, " Invalid buyer address error");
-    return { status: "error", message: "Invalid Address", data: {} };
-    //  document.getElementById("payerAddress").classList.add("is-invalid");
-    //  hideDummyUtxoElements();
-    //  return console.error(e);
-  } finally {
-    //show loading utxos status
-  }
-
-  //  document.getElementById("payerAddress").classList.remove("is-invalid");
-
-  const potentialDummyUtxos = payerUtxos.filter(
-    (utxo) => utxo.value <= dummyUtxoValue
-  );
-  let dummyUtxo = undefined;
-
-  for (const potentialDummyUtxo of potentialDummyUtxos) {
-    if (!(await doesUtxoContainInscription(potentialDummyUtxo))) {
-      //  hideDummyUtxoElements();
-      console.error("utxo doesnt contain inscription");
-      dummyUtxo = potentialDummyUtxo;
-      break;
-    }
-  }
-
-  let minimumValueRequired;
-  let vins;
-  let vouts;
-
-  if (!dummyUtxo) {
-    //  showDummyUtxoElements();
-
-    minimumValueRequired = numberOfDummyUtxosToCreate * dummyUtxoValue;
-    vins = 0;
-    vouts = numberOfDummyUtxosToCreate;
-  } else {
-    // hideDummyUtxoElements();
-    minimumValueRequired = price + numberOfDummyUtxosToCreate * dummyUtxoValue;
-    vins = 1;
-    vouts = 2 + numberOfDummyUtxosToCreate;
-  }
-
-  try {
-    paymentUtxos = await selectUtxos(
-      payerUtxos,
-      minimumValueRequired,
-      vins,
-      vouts,
-      await recommendedFeeRate()
-    );
-    if (!dummyUtxo) {
-      psbt = await generatePSBTGeneratingDummyUtxos(
-        payerAddress,
-        numberOfDummyUtxosToCreate,
-        paymentUtxos
-      );
-      return {
-        status: "success",
-        message: "Generated PSBT for creating dummy utxo Successfully",
-        data: { psbt, for: "utxo" },
-      };
-    } else {
-      const receiverAddress = payerAddress;
-      psbt = await generatePSBTBuyingInscriptionOld(
-        payerAddress,
-        receiverAddress,
-        btcToSat(price),
-        paymentUtxos,
-        dummyUtxo,
-        inscriptionOutputValue
-      );
-      return {
-        status: "success",
-        message: "Generated PSBT for buying inscription Successfully",
-        data: { psbt, for: "buying" },
-      };
-    }
-  } catch (e) {
-    paymentUtxos = undefined;
-    console.error(e, "error generating psbt");
-    return { status: "error", message: e?.message || e, data: {} };
-    // document.getElementById("payerAddress").classList.add("is-invalid");
-    // return alert(e);
-  }
-};
-const generatePSBTBuyingInscriptionOld = async (
-  payerAddress,
-  receiverAddress,
-  price,
-  paymentUtxos,
-  dummyUtxo,
-  inscriptionOutputValue
-) => {
-  const psbt = new bitcoin.Psbt({ network: undefined });
-  let totalValue = 0;
-  let totalPaymentValue = 0;
-
-  // Add dummy utxo input
-  const tx = bitcoin.Transaction.fromHex(await getTxHexById(dummyUtxo.txid));
-  for (const output in tx.outs) {
-    try {
-      tx.setWitness(Number(output), []);
-    } catch {}
-  }
-  psbt.addInput({
-    hash: dummyUtxo.txid,
-    index: dummyUtxo.vout,
-    nonWitnessUtxo: tx.toBuffer(),
-    // witnessUtxo: tx.outs[dummyUtxo.vout],
-  });
-
-  // Add inscription output
-  psbt.addOutput({
-    address: receiverAddress,
-    value: dummyUtxo.value + inscriptionOutputValue,
-  });
-
-  // Add payer signed input
-  psbt.addInput({
-    ...sellerSignedPsbt.data.globalMap.unsignedTx.tx.ins[0],
-    ...sellerSignedPsbt.data.inputs[0],
-  });
-
-  // Add payer output
-  psbt.addOutput({
-    ...sellerSignedPsbt.data.globalMap.unsignedTx.tx.outs[0],
-  });
-
-  // Add payment utxo inputs
-  for (const utxo of paymentUtxos) {
-    const tx = bitcoin.Transaction.fromHex(await getTxHexById(utxo.txid));
-    for (const output in tx.outs) {
-      try {
-        tx.setWitness(Number(output), []);
-      } catch {}
-    }
-
-    psbt.addInput({
-      hash: utxo.txid,
-      index: utxo.vout,
-      nonWitnessUtxo: tx.toBuffer(),
-      // witnessUtxo: tx.outs[utxo.vout],
-    });
-
-    totalValue += utxo.value;
-    totalPaymentValue += utxo.value;
-  }
-
-  // Create a new dummy utxo output for the next purchase
-  psbt.addOutput({
-    address: payerAddress,
-    value: dummyUtxoValue,
-  });
-
-  const fee = calculateFee(
-    psbt.txInputs.length,
-    psbt.txOutputs.length,
-    await recommendedFeeRate()
-  );
-
-  const changeValue = totalValue - dummyUtxo.value - price - fee;
-  if (changeValue < 0) {
-    throw `Your wallet address doesn't have enough funds to buy this inscription.
-Price:          ${satToBtc(price)} BTC
-Fees:       ${satToBtc(fee + dummyUtxoValue)} BTC
-You have:   ${satToBtc(totalPaymentValue)} BTC
-Required:   ${satToBtc(totalValue - changeValue)} BTC
-Missing:     ${satToBtc(-changeValue)} BTC`;
-  }
-  // Change utxo
-  psbt.addOutput({
-    address: payerAddress,
-    value: changeValue,
-  });
-  return psbt.toBase64();
-};
 async function doesUtxoContainInscription(utxo) {
   const html = await fetch(
     `${ordinalsExplorerUrl}/output/${utxo.txid}:${utxo.vout}`
@@ -287,55 +93,120 @@ export async function selectUtxos(
   amount,
   vins,
   vouts,
-  recommendedFeeRate
+  recommendedFeeRate,
+  inscriptionOutputValue,
+  payerAddress
 ) {
-  const selectedUtxos = [];
-  let selectedAmount = 0;
+  let takerUtxos = [];
+  let paddingUtxos = [];
+  takerUtxos.length = 0;
+  paddingUtxos.length = 0;
+  let takerUtxosAmount = 0;
+  let paddingUtxosAmount = 0;
+  let additionalVouts = 0;
+  let takerPaddingRequired = false;
+  let estimatedFee = 0;
 
-  // Sort descending by value, and filter out dummy utxos
-  utxos = utxos
-    .filter((x) => x.value > dummyUtxoValue)
-    .sort((a, b) => b.value - a.value);
+  // Sort descending by value greater than amount
+  utxos = utxos.filter((x) => x.value).sort((a, b) => b.value - a.value);
+  console.log(utxos, 'UTXOS')
 
   for (const utxo of utxos) {
     // Never spend a utxo that contains an inscription for cardinal purposes
     if (await doesUtxoContainInscription(utxo)) {
       continue;
     }
-    selectedUtxos.push(utxo);
-    selectedAmount += utxo.value;
+
+    estimatedFee = calculateFee(
+      vins + takerUtxos.length + paddingUtxos.length,
+      vouts + additionalVouts,
+      recommendedFeeRate
+    );
+
+
+    if (takerUtxosAmount < amount) {
+      console.log("condition 1: payer has low balance than required")
+      takerUtxos.push(utxo);
+      takerUtxosAmount += utxo.value;
+      additionalVouts++;
+    } else if (
+      inscriptionOutputValue - estimatedFee + paddingUtxosAmount <
+      2546
+    ) {
+      console.log("condition 2: inscriptionValue + padding utxo isnt enough")
+      paddingUtxos.push(utxo);
+      paddingUtxosAmount += utxo.value;
+      if (!takerPaddingRequired) {
+        takerPaddingRequired = true;
+        additionalVouts++;
+      }
+    }
 
     if (
-      selectedAmount >=
-      amount +
-        dummyUtxoValue +
-        calculateFee(vins + selectedUtxos.length, vouts, recommendedFeeRate)
+      amount < takerUtxosAmount &&
+      inscriptionOutputValue + paddingUtxosAmount - estimatedFee > 2546
     ) {
       break;
     }
   }
 
-  if (selectedAmount < amount) {
-//     throw new Error(`Not enough cardinal spendable funds.
-// Address has:  ${satToBtc(selectedAmount)} BTC
-// Needed:  ${satToBtc(amount)} BTC`);
+  if (inscriptionOutputValue + paddingUtxosAmount - estimatedFee < 2546) {
+    const psbt = new bitcoin.Psbt({ network: undefined });
+    // add payment inputs
+    for (const utxo of takerUtxos) {
+      psbt.addInput({
+        hash: utxo.txid,
+        index: utxo.vout,
+        nonWitnessUtxo: bitcoin.Transaction.fromHex(
+          await getTxHexById(utxo.txid)
+        ).toBuffer(),
+      });
+    }
+    const paddingAmount =
+      5546 -
+      inscriptionOutputValue +
+      calculateFee(
+        vins + takerUtxos.length + paddingUtxos.length + 1,
+        vouts + additionalVouts,
+        recommendedFeeRate
+      );
+    // console.log('required padding amount ', paddingAmount)
+    psbt.addOutput({
+      address: payerAddress,
+      value: paddingAmount,
+    });
+    psbt.addOutput({
+      address: payerAddress,
+      value: utxos[0].value -paddingAmount - recommendedFeeRate
+    });
+
+    console.log(psbt.toBase64(), 'PSBT to generate a PADDING UTXO')
     
-    return {
-      status: "error",
-      message: `Address has ${satToBtc(selectedAmount)} BTC Needs ${satToBtc(
-        amount
-      )} BTC`,
-    };
+    console.log("output 2 value ", utxos[0].value - paddingAmount);
+    return {status:"success",message:"Create Padding UTXO PSBT Generated",data:{psbt: psbt.toBase64(), for:"Padding"}};
+    throw new Error(`Not enough cardinal spendable funds to support the necessary padding.
+Address has:  ${satToBtc(paddingUtxosAmount)} BTC to pad the inscription
+Needed:          ${satToBtc(
+      5546 -
+        inscriptionOutputValue +
+        calculateFee(
+          vins + takerUtxos.length + paddingUtxos.length + 1,
+          vouts + additionalVouts,
+          recommendedFeeRate
+        )
+    )} BTC`);
   }
 
-  return selectedUtxos;
-  async function doesUtxoContainInscription(utxo) {
-    const html = await fetch(
-      `${ordinalsExplorerUrl}/output/${utxo.txid}:${utxo.vout}`
-    ).then((response) => response.text());
-
-    return html.match(/class=thumbnails/) !== null;
+  if (takerUtxosAmount < amount + 546) {
+    return {status:"error", message:`Not enough cardinal spendable funds.
+Address has:  ${satToBtc(takerUtxosAmount)} BTC
+Needed:          ${satToBtc(amount + estimatedFee)} BTC`}
+    throw new Error(`Not enough cardinal spendable funds.
+Address has:  ${satToBtc(takerUtxosAmount)} BTC
+Needed:          ${satToBtc(amount + estimatedFee)} BTC`);
   }
+
+  return {status:"success", message:"Generated utxos", data: {takerUtxos, paddingUtxos}};
 }
 const generatePSBTGeneratingDummyUtxos = async (
   payerAddress,
@@ -408,13 +279,15 @@ export function btcToSat(btc) {
   return Math.floor(Number(btc) * Math.pow(10, 8));
 }
 
-export function satToBtc(sat) {
+export function satToBtc(sat: number) {
   return Number(sat) / Math.pow(10, 8);
 }
 
-export const bitcoinPrice = fetch(bitcoinPriceApiUrl)
-  .then((response) => response.json())
-  .then((data) => data.USD?.last);
+export const bitcoinPrice = () =>
+  fetch(bitcoinPriceApiUrl)
+    .then((response) => response.json())
+    .then((data) => data.USD?.last);
+
 export { cn, formatDate, numberToCurrencyString, clamp };
 
 function getHashQueryStringParam(paramName) {
@@ -491,7 +364,7 @@ export function validateSellerPSBTAndExtractPrice(
       //   `Seller signed PSBT does not match this inscription\n\n${sellerSignedPsbtInput}\n!=\n${utxo}`
       // );
       return {
-        error: `Seller signed PSBT does not match this inscription\n\n${sellerSignedPsbtInput}\n!=\n${utxo}`,
+        error: `Seller signed PSBT does not match this inscription ${sellerSignedPsbtInput} != ${utxo}`,
       };
     }
     if (
@@ -523,18 +396,16 @@ export function validateSellerPSBTAndExtractPrice(
 export const nostrRelayUrl = "wss://nostr.openordex.org";
 export const nostrOrderEventKind = 802;
 
-
-export const addressHasTxInMempool = async(address) => {
+export const addressHasTxInMempool = async (address) => {
   const payerCurrentMempoolTxIds = await getAddressMempoolTxIds(address);
-  if (payerCurrentMempoolTxIds.length > 1)
-    return true
-  else
-    return false
-}
+  if (payerCurrentMempoolTxIds.length > 1) return true;
+  else return false;
+};
 
-export const fetcher = (...args: any[]) => fetch(...args).then((res) => res.json());
+export const fetcher = (...args: any[]) =>
+  fetch(...args).then((res) => res.json());
 
-export  const convert = (n) => {
+export const convert = (n) => {
   if (n < 1e3) return n;
   if (n >= 1e3 && n < 1e6) return +(n / 1e3).toFixed(1) + "K";
   if (n >= 1e6 && n < 1e9) return +(n / 1e6).toFixed(1) + "M";
@@ -549,29 +420,28 @@ export function base64ToHex(str) {
     .join("");
 }
 
-async function getWalletAddress(unisat:any) {
-  if (typeof unisat !== "undefined") {
-    return (await unisat.requestAccounts())[0];
-  }
-}
-
-
-export async function signPSBTUsingWallet(psbt, unisat, successMessage="signed transaction successfully") {
+export const range = (n) => Array.from(Array(n).keys());
+export async function signPSBTUsingWallet(
+  psbt,
+  wallet = "Unisat",
+  successMessage = "signed transaction successfully"
+) {
   try {
-    const accounts = await unisat.requestAccounts();
-    const tempSignedPsbt = await unisat.signPsbt(base64ToHex(psbt));
-    const signedPsbt = bitcoin.Psbt.fromHex(tempSignedPsbt, {
-      network: undefined,
-    }).toBase64();
-    return {
-      message: successMessage,
-      data: {
-        signedPSBT: signedPsbt,
-      },
-      status: "success",
-    };
+    if (wallet === "Unisat") {
+      const tempSignedPsbt = await unisat.signPsbt(base64ToHex(psbt));
+      const signedPsbt = bitcoin.Psbt.fromHex(tempSignedPsbt, {
+        network: undefined,
+      }).toBase64();
+      return {
+        message: successMessage,
+        data: {
+          signedPSBT: signedPsbt,
+        },
+        status: "success",
+      };
+    }
   } catch (e) {
-    // console.error(e);
+    console.error(e);
     // alert(e.message);
     return { status: "error", message: e.message };
   }
@@ -616,7 +486,6 @@ export async function signPSBTUsingWalletAndBroadcast(
       method: "post",
       body: txHex,
     });
-    console.log(res, 'response')
     if (res.status != 200) {
       return {
         message: `Mempool API returned ${res.status} ${
@@ -643,8 +512,32 @@ export async function signPSBTUsingWalletAndBroadcast(
     // alert("Transaction signed and broadcasted to mempool successfully");
     // window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
   } catch (e) {
-    console.error(e, 'ERRRRR');
+    console.error(e, "ERRRRR");
     // alert(e);
-     return { status: "error", message: e.message };
+    return { status: "error", message: e.message };
   }
+}
+
+export function satsToFormattedDollarString(sats, _bitcoinPrice) {
+  return (satToBtc(sats) * _bitcoinPrice).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export async function getWalletAddress(wallet, type = "cardinal") {
+  if (typeof window.unisat !== "undefined" && wallet === "Unisat") {
+    return (await unisat.requestAccounts())?.[0];
+  }
+
+  if (typeof window.StacksProvider !== "undefined" && wallet === "Hiro") {
+    return (await GetHiroWalletAddresses())?.[type];
+  }
+}
+
+async function GetHiroWalletAddresses() {
+  const state = JSON.parse(localStorage.getItem("blockstack-session"));
+  const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
+  const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
+  return { ordinal, cardinal };
 }
