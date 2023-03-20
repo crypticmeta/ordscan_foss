@@ -47,8 +47,9 @@ bitcoin.initEccLib(secp256k1);
 interface OrdinalProp {
   data: Inscription;
   setSaleData: Function;
+  saleData: any;
 }
-function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
+function Sale({ data, setSaleData, saleData }: OrdinalProp): JSX.Element {
   const state = useContext(AppContext);
   const { doOpenAuth, signPsbt } = useConnect();
   const [wallets, setwallets] = useState([]);
@@ -132,7 +133,19 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
   useEffect(() => {
     if (selectedWallet === "Hiro" && state?.userData?.profile) {
       const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
-      setSellerAddr(cardinal);
+      const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
+      if (ordinal !== data.address) {
+        notify({
+          type: "error",
+          message: "This address is not supported",
+          description: "HIRO only supports listing from default address. Default address is "+ordinal
+        })
+        setSelectedWallet("")
+        
+      }
+      else {
+        setSellerAddr(cardinal);
+      }
     }
   }, [selectedWallet, state]);
 
@@ -271,7 +284,7 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
           onClick={handleOpen}
           className={`first-letter:mb-2 z-[1] left-0 bg-brand_blue text-white text-xl px-6 py-2 rounded `}
         >
-          List Now
+          {saleData?.price ? "Update Listing" : "List Now"}
         </button>
       </div>
 
@@ -384,7 +397,7 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
                       fullWidth
                       multiline
                       rows={5}
-                      value={signedB64PSBT?signedB64PSBT: signedTx}
+                      value={signedB64PSBT ? signedB64PSBT : signedTx}
                       onChange={(e) => setSignedTx(e.target.value)}
                     />
                   </div>

@@ -478,11 +478,11 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
         )} */}
         {saleData?.signedPsbt && saleData?.price && !loading ? (
           <Buy data={data} saleData={saleData} />
-          // <></>
         ) : (
-          <Sale data={data} setSaleData={setSaleData} />
           // <></>
+          <></>
         )}
+        <Sale data={data} setSaleData={setSaleData} saleData={ saleData} />
         <div className="flex justify-center">
           <button
             onClick={(e) => dispatch(setOrdinal(null))}

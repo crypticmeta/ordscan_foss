@@ -170,16 +170,25 @@ export async function selectUtxos(
     }
     console.log(recommendedFeeRate, "fee rate");
     const fee = calculateFee(1, 2, recommendedFeeRate, payerAddress);
-    const paddingAmount = 5546 - inscriptionOutputValue + fee;
+    const paddingAmount = 6546 - inscriptionOutputValue + fee;
     psbt.addOutput({
       address: payerAddress,
       value: paddingAmount,
     });
+
     psbt.addOutput({
       address: payerAddress,
       value: takerUtxosAmount - paddingAmount - fee,
     });
 
+    // console.log(takerUtxosAmount - paddingAmount - fee, "output 2");
+
+    if (takerUtxosAmount - paddingAmount - fee < amount + 546) {
+      return {
+        status: "error",
+        message: "Not enough balance to buy and add padding",
+      };
+    }
     console.log(psbt.toBase64(), "PSBT to generate a PADDING UTXO");
     notify({
       type: "info",
