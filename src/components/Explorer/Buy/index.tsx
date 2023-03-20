@@ -1,16 +1,30 @@
-import React, { useCallback,  useContext,  useEffect,  useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import copy from "copy-to-clipboard";
 import Modal from "@mui/material/Modal";
-import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, TextField } from "@mui/material";
+import {
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
+  TextField,
+} from "@mui/material";
 import Link from "next/link";
-import { addressHasTxInMempool, base64ToHex, baseMempoolApiUrl, getAddressMempoolTxIds, range, signPSBTUsingWallet, signPSBTUsingWalletAndBroadcast } from "../../../utils";
+import {
+  addressHasTxInMempool,
+  base64ToHex,
+  baseMempoolApiUrl,
+  getAddressMempoolTxIds,
+  range,
+  signPSBTUsingWallet,
+  signPSBTUsingWalletAndBroadcast,
+} from "../../../utils";
 import { notify } from "utils/notifications";
 import QRCode from "react-qr-code";
 import { Inscription, Order } from "types";
 import { buyInscriptionPSBT } from "utils/Ordinals/buyOrdinal";
 import { Mixpanel } from "utils/mixpanel";
 const baseMempoolUrl = "https://mempool.space";
-
 
 import * as bitcoin from "bitcoinjs-lib";
 import secp256k1 from "@bitcoinerlab/secp256k1";
@@ -118,7 +132,7 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
       notify({ type: "error", message: result.message });
     } else if (result.status === "success") {
       setPSBT(result.data.psbt);
-      console.log(result.data, 'setting result')
+      console.log(result.data, "setting result");
       setResult(result.data);
       //if psbt is present and a wallet has been selected, it will request signature
       if (result.data.psbt && selectedWallet) {
@@ -203,9 +217,9 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
       const dbData = {
         ...saleData,
         ...data,
-        txid: txId
-      }
-       Mixpanel.track("Bought", dbData);
+        txid: txId,
+      };
+      Mixpanel.track("Bought", dbData);
       notify({
         type: "success",
         message: "Transaction signed and broadcasted to mempool successfully",
@@ -267,7 +281,7 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
                   <div>
                     <TextField
                       id="filled-basic"
-                      label="Buyer Address"
+                      label="Payment From This Address:"
                       variant="filled"
                       fullWidth
                       value={payAddr}
