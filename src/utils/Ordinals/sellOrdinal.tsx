@@ -1,12 +1,8 @@
 import * as bitcoin from "bitcoinjs-lib";
 import secp256k1 from "@bitcoinerlab/secp256k1";
 import {
-  base64ToHex,
-  bitcoinPrice,
-  btcToSat,
-  calculateFee,
-  getAddressUtxos,
   getTxHexById,
+  getWalletAddress,
   recommendedFeeRate,
   satToBtc,
   selectUtxos,
@@ -34,26 +30,46 @@ const feeLevel = "hourFee";
 export async function generatePSBTListingInscriptionForSale(
   ordinalOutput,
   price,
-  paymentAddress
+  paymentAddress,
+  wallet
 ) {
   let psbt = new bitcoin.Psbt({ network: undefined });
 
   const [ordinalUtxoTxId, ordinalUtxoVout] = ordinalOutput.split(":");
-  const tx = bitcoin.Transaction.fromHex(await getTxHexById(ordinalUtxoTxId));
-  for (const output in tx.outs) {
-    try {
-      tx.setWitness(Number(output), []);
-    } catch {}
+  const tx: any = bitcoin.Transaction.fromHex(
+    await getTxHexById(ordinalUtxoTxId)
+  );
+  const installedWalletName = wallet;
+  if (installedWalletName != "Hiro") {
+    for (const output in tx.outs) {
+      try {
+        tx.setWitness(parseInt(output), []);
+      } catch {}
+    }
   }
-  psbt.addInput({
+
+  const input: any = {
     hash: ordinalUtxoTxId,
     index: parseInt(ordinalUtxoVout),
     nonWitnessUtxo: tx.toBuffer(),
-    // witnessUtxo: tx.outs[ordinalUtxoVout],
+    witnessUtxo: tx.outs[ordinalUtxoVout],
     sighashType:
       bitcoin.Transaction.SIGHASH_SINGLE |
       bitcoin.Transaction.SIGHASH_ANYONECANPAY,
-  });
+  };
+  if (installedWalletName == "Hiro") {
+    const state = JSON.parse(localStorage.getItem("blockstack-session"));
+    // const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
+    // const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
+    await getWalletAddress(wallet);
+    input.tapInternalKey = toXOnly(
+      tx
+        .toBuffer()
+        .__proto__.constructor(state.userData.profile.btcPublicKey.p2tr, "hex")
+    );
+  }
+
+  psbt.addInput(input);
 
   psbt.addOutput({
     address: paymentAddress,
@@ -62,10 +78,13 @@ export async function generatePSBTListingInscriptionForSale(
 
   return psbt.toBase64();
 }
+const toXOnly = (pubKey) =>
+  pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
 export const submitSignedSalePsbt = async (
   signedTx: string,
-  psbt: string
+  psbt: string,
+  wallet?: string
 ): Promise<Result> => {
   const signedContent = signedTx;
   let signedSalePsbt;
@@ -89,13 +108,37 @@ export const submitSignedSalePsbt = async (
       });
     }
     signedSalePsbt = signedSalePsbt.toBase64();
+  } else if (signedContent.match(/^[0-9a-fA-F]+$/)) {
+    signedSalePsbt = bitcoin.Psbt.fromHex(signedContent, {
+      network: undefined,
+    }).toBase64();
   } else {
     signedSalePsbt = signedTx;
   }
   try {
-    bitcoin.Psbt.fromBase64(signedSalePsbt, {
+    let testPsbt: any = bitcoin.Psbt.fromBase64(signedSalePsbt, {
       network: undefined,
-    }).extractTransaction(true);
+    });
+    if (wallet == "Hiro") {
+      for (let i = 0; i < testPsbt.data.inputs.length; i++) {
+        if (
+          testPsbt.data.inputs[i].tapKeySig?.length &&
+          !testPsbt.data.inputs[i]?.finalScriptWitness?.length
+        ) {
+          testPsbt.updateInput(i, {
+            finalScriptWitness: testPsbt.data.inputs[
+              i
+            ].tapKeySig.__proto__.constructor([
+              1,
+              65,
+              ...testPsbt.data.inputs[i].tapKeySig,
+            ]),
+          });
+        }
+      }
+      signedSalePsbt = testPsbt.toBase64();
+    }
+    testPsbt.extractTransaction(true);
   } catch (e) {
     if (e.message == "Not finalized") {
       return {
@@ -114,15 +157,14 @@ export const submitSignedSalePsbt = async (
     }
   }
   const hash = "sellerSignedPsbt=" + signedSalePsbt;
+
+  // console.log(signedSalePsbt, "BAse64");
   return {
     message: "checked signed psbt successfully",
     data: { hash, signedPSBT: signedSalePsbt },
     status: "success",
   };
 };
-
-
-
 
 // async function signPSBTUsingWalletAndBroadcast(psbt, unisat) {
 //   try {

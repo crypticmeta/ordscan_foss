@@ -24,6 +24,8 @@
     "@mui/material": "^5.11.8",
     "@next/bundle-analyzer": "^13.2.3",
     "@reduxjs/toolkit": "^1.9.3",
+    "@stacks/connect-react": "^22.0.1",
+    "@stacks/rpc-client": "^0.8.18",
     "@tailwindcss/typography": "^0.5.9",
     "@types/file-saver": "^2.0.5",
     "@types/mixpanel-browser": "^2.38.0",

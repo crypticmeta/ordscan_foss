@@ -31,8 +31,8 @@ function Id({ data }) {
         <Meta
           title={`Ordscan | Inscription #${data.inscription_number}`}
           description={`Inscription #${data.inscription_number} is ${
-            data.content_type.split("/")[0] === "image" ? "an " : "a"
-          } ${data.content_type.split("/")[0]} held by ${data.address} wallet`}
+            data?.content_type?.split("/")[0] === "image" ? "an " : "a"
+          } ${data?.content_type?.split("/")[0]} held by ${data.address} wallet`}
           image={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${data.id}`}
         />
         <Ordinal data={data} />
@@ -109,6 +109,9 @@ export async function getServerSideProps({ params, req, res }) {
     }
   } catch (e) {
     console.log(e, "ERR");
+  }
+  if (data?.output?.includes("/")) {
+    data.output = data.output.split("/")[2];
   }
   return {
     props: { data },

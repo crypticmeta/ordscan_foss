@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { relayInit } from "nostr-tools";
 import { nostrOrderEventKind, nostrRelayUrl, satToBtc, validateSellerPSBTAndExtractPrice } from "utils";
@@ -20,7 +20,7 @@ import AddPadding from "../AddPadding";
 import { useDispatch, useSelector } from "react-redux";
 import { setOrdinal } from "stores/reducers/ordinalSlice";
 import { RootState } from "stores";
-import { setOrderbook } from "stores/reducers/orderbookSlice";
+import { BiLinkExternal } from "react-icons/bi";
 interface OrdinalProp {
   data: Inscription;
 }
@@ -37,6 +37,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [db, setDB] = useState(null);
   const router = useRouter();
+
   const handleSave = () => {
     const url = `${process.env.NEXT_PUBLIC_PROVIDER}/content/${data.id}`;
     saveAs(url, data.title);
@@ -89,7 +90,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
 
   const checkValidity = useCallback(
     (signedPSBT) => {
-      const result: any = validateSellerPSBTAndExtractPrice(signedPSBT, data.output.split("/")[2]);
+      const result: any = validateSellerPSBTAndExtractPrice(signedPSBT, data.output);
       // console.log(result, 'validity check result')
       if (result?.error)
         return false
@@ -145,7 +146,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
     });
     await relay.connect();
     events = await relay.list([
-      { kinds: [nostrOrderEventKind], "#u": [data?.output.split("/")[2]] },
+      { kinds: [nostrOrderEventKind], "#u": [data?.output] },
     ]);
     events = events
       .filter((a) => !a.content.includes("PSBTGOESHERE"))
@@ -172,7 +173,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
         signedPsbt: router.query.signedpsbt + "",
         createdAt: new Date().toDateString(),
         type: "sell",
-        utxo: data.output.split("/")[2],
+        utxo: data.output,
       };
       // console.log(tempSaleData, 'TSD')
       const valid = checkValidity(router.query.signedpsbt)
@@ -197,14 +198,14 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
         }
         const parsedData = await parseNostr(tempList[0]);
         if (parsedData) setSaleData(parsedData);
-      } catch (e) {}
+      } catch (e) { }
+      relay.close()
     }
   }, [checkValidity, data.id, data.output, parseNostr, router.query.signedpsbt]);
 
   useEffect(() => {
-    connectRelay();
-  }, []);
-
+    if (connectRelay && data && !saleData) connectRelay();
+  }, [connectRelay, data, saleData]);
   return (
     <div className="flex min-h-screen justify-center relative lg:justify-start pt-8 lg:py-16  items-center lg:items-start flex-wrap">
       <div
@@ -368,11 +369,11 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
             <div className="text-white border-brand_red border-2 rounded-xl bg-brand_black text-center p-2">
               <p className="text-xs text-gray-500">UTXO</p>
               <p className=" text-sm pt-1 flex items-center justify-center">
-                <span>{shortForm(data?.output.split("/")[2])} </span>
+                <span>{shortForm(data?.output)} </span>
                 <AiOutlineCopy
                   className="text-xl ml-3 cursor-pointer"
                   onClick={() =>
-                    copy(data?.output.split("/")[2], {
+                    copy(data?.output, {
                       message: "copied to clipboard",
                     })
                   }
@@ -433,18 +434,55 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
           ) : (
             <></>
           )}
+          {saleData?.signedPsbt ? (
+            <>
+              <div className="w-6/12 md:w-4/12 xl:w-3/12  p-2">
+                <div className="text-white border-brand_red border-2 rounded-xl bg-brand_red text-center p-2">
+                  <p className="text-xs text-red-200">Ordscan Link</p>
+                  <p className=" text-sm pt-1 flex items-center justify-center">
+                    <span>Copy</span>
+                    <AiOutlineCopy
+                      className="text-xl ml-3 cursor-pointer"
+                      onClick={() =>
+                        copy(
+                          `${window.location.origin}/search/${data.id}?signedpsbt=${saleData?.signedPsbt}`
+                        )
+                      }
+                    />
+                  </p>
+                </div>
+              </div>
+              <div className="w-6/12 md:w-4/12 xl:w-3/12  p-2">
+                <div className="text-white border-brand_red border-2 rounded-xl bg-brand_black text-center p-2">
+                  <p className="text-xs text-gray-500">Openordex Link</p>
+                  <p className=" text-sm pt-1 flex items-center justify-center">
+                    <span>Open</span>
+                    <Link
+                      href={`https://openordex.org/inscription?number=${data.id}`}
+                      target="#"
+                    >
+                      <BiLinkExternal className="text-xl ml-3 cursor-pointer" />
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <></>
+          )}
         </div>
-        {Number(data.output_value) < 8000 && !loading ? (
+        {/* {Number(data.output_value) < 8000 && !loading ? (
           <AddPadding data={data} saleData={saleData} />
         ) : (
           <></>
-        )}
-        {/* {saleData?.signedPsbt && saleData?.price && !loading ? (
+        )} */}
+        {saleData?.signedPsbt && saleData?.price && !loading ? (
           <Buy data={data} saleData={saleData} />
+          // <></>
         ) : (
           <Sale data={data} setSaleData={setSaleData} />
           // <></>
-        )} */}
+        )}
         <div className="flex justify-center">
           <button
             onClick={(e) => dispatch(setOrdinal(null))}
