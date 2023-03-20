@@ -87,7 +87,7 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
         await signWithAvailableWallet(selectedWallet, tempPsbt);
       }
     },
-    [data.output, price, psbt, selectedWallet, sellerAddr]
+    [data?.output, doOpenAuth, price, selectedWallet, sellerAddr, state?.userData]
   );
 
   const signTx = useCallback(
@@ -118,10 +118,12 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
     if (result.status === "success" && result.data?.signedPSBT) {
       try {
         notify({ type: "success", message: "Signed successfully" });
-        // console.log(data.output)
+        console.log(result)
         //TODO: Uncomment to enable publishing to orderbook
         await publishPSBT(result?.data?.signedPSBT);
-      } catch (e) {}
+      } catch (e) {
+        console.log(e, 'error listing')
+      }
     } else if (result.status === "error") {
       notify({ type: result.status, message: result.message });
     }
@@ -153,34 +155,53 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
           ["n", "mainnet"], // Network name (e.g. "mainnet", "signet")
           ["t", "sell"], // Type of order (e.g. "sell", "buy")
           ["i", data.id], // Inscription ID
-          ["m", data.inscription_number], // Inscription number
+          ["m", JSON.stringify(data.inscription_number)], // Inscription number
           ["u", data.output], // Inscription UTXO
           ["s", JSON.stringify(btcToSat(Number(price)))], // Price in sats
-          ["x", "twelveFrog"], // Exchange name (e.g. "openordex")
+          ["x", "ordscan"], // Exchange name (e.g. "openordex")
         ],
         content: signedPsbt,
       };
       event.id = getEventHash(event);
       event.sig = signEvent(event, sk);
+       const dbData = {
+         pubkey: pk,
+         created_at: event.created_at,
+         network: "mainnet",
+         type: "sell",
+         inscription_id: data.id,
+         inscription_output: data.output,
+         price: btcToSat(Number(price)),
+         marketplace: "Ordscan",
+         signedPsbt,
+         event_id: getEventHash(event),
+      };
       let pub = relay.publish(event);
-      pub.on("ok", async () => {
+      pub.on("ok", async() => {
+        handleClose();
         console.log(`${relay.url} has accepted our event`);
+         await axios
+           .post(`${process.env.NEXT_PUBLIC_API}/order/create`, dbData)
+           .catch((e) => {});
+         Mixpanel.track("Listed", dbData);
         notify({
           type: "succes",
           message: "Successfully Listed the inscription for sale",
         });
-        // setSaleData({
-        //   id: data.id,
-        //   inscriptionId: data.id,
-        //   price,
-        //   signedPsbt: signedPsbt,
-        //   createdAt: new Date().toDateString(),
-        //   type: "sell",
-        //   utxo: data.output,
-        // });
+        const tempSaleData = {
+          id: data.id,
+          inscriptionId: data.id,
+          price: Number(price),
+          signedPsbt: signedPsbt,
+          createdAt: new Date().toDateString(),
+          type: "sell",
+          utxo: data.output,
+        };
+        setSaleData(tempSaleData);
         return true;
       });
       pub.on("failed", (reason) => {
+        handleClose();
         notify({
           type: "error",
           message:
@@ -189,10 +210,10 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
         console.log(`failed to publish to ${relay.url}: ${reason}`);
         return false;
       });
-      handleClose();
-      return true;
+      // handleClose();
+      // return true;
     },
-    [data.id, data.output, price, relay, signedTx]
+    [data.id, data.inscription_number, data.output, price, relay, setSaleData]
   );
 
   const signWithAvailableWallet = useCallback(
@@ -232,25 +253,8 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
   const signedPsbtDataToB64 = useCallback(async () => {
     const result = await submitSignedSalePsbt(signedTx, psbt, selectedWallet);
     setSignedB64PSBT(result.data.signedPSBT);
-    const tempSaleData = {
-      id: data.id,
-      inscriptionId: data.id,
-      price,
-      signedPsbt: result.data.signedPSBT,
-      createdAt: new Date().toDateString(),
-      type: "sell",
-      utxo: data.output.split("/")[2],
-    };
-    setSaleData(tempSaleData);
-  }, [
-    data.id,
-    data.output,
-    price,
-    psbt,
-    selectedWallet,
-    setSaleData,
-    signedTx,
-  ]);
+    
+  }, [psbt, selectedWallet, signedTx]);
 
   useEffect(() => {
     //converts available signedHePSBT to Base64 format for easy copy and ordscan, openordex link
@@ -259,7 +263,6 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
     }
   }, [signedTx, psbt, signedPsbtDataToB64]);
 
-  
 
   return (
     <>
@@ -269,7 +272,6 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
           className={`first-letter:mb-2 z-[1] left-0 bg-brand_blue text-white text-xl px-6 py-2 rounded `}
         >
           List Now
-          <span className="text-xs text-blue-200"> Beta</span>
         </button>
       </div>
 
@@ -382,7 +384,7 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
                       fullWidth
                       multiline
                       rows={5}
-                      value={signedTx}
+                      value={signedB64PSBT?signedB64PSBT: signedTx}
                       onChange={(e) => setSignedTx(e.target.value)}
                     />
                   </div>

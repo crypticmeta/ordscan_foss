@@ -198,14 +198,14 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
         }
         const parsedData = await parseNostr(tempList[0]);
         if (parsedData) setSaleData(parsedData);
-      } catch (e) {}
+      } catch (e) { }
+      relay.close()
     }
   }, [checkValidity, data.id, data.output, parseNostr, router.query.signedpsbt]);
 
   useEffect(() => {
-    connectRelay();
-  }, []);
-
+    if (connectRelay && data && !saleData) connectRelay();
+  }, [connectRelay, data, saleData]);
   return (
     <div className="flex min-h-screen justify-center relative lg:justify-start pt-8 lg:py-16  items-center lg:items-start flex-wrap">
       <div

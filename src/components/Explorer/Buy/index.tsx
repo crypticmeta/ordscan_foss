@@ -118,6 +118,7 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
       notify({ type: "error", message: result.message });
     } else if (result.status === "success") {
       setPSBT(result.data.psbt);
+      console.log(result.data, 'setting result')
       setResult(result.data);
       //if psbt is present and a wallet has been selected, it will request signature
       if (result.data.psbt && selectedWallet) {
@@ -199,13 +200,26 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
       }
 
       const txId = await res.text();
-      alert("Transaction signed and broadcasted to mempool successfully");
+      const dbData = {
+        ...saleData,
+        ...data,
+        txid: txId
+      }
+       Mixpanel.track("Bought", dbData);
+      notify({
+        type: "success",
+        message: "Transaction signed and broadcasted to mempool successfully",
+      });
       window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
     } catch (e) {
       console.error(e);
-      alert(e);
+      notify({
+        type: "error",
+        message: e,
+      });
+      // alert(e);
     }
-  }, [selectedWallet, signedPsbt]);
+  }, [data, saleData, selectedWallet, signedPsbt]);
 
   return (
     <>
@@ -301,6 +315,22 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
                       </FormControl>
                     </div>
                   )}
+                  <div className="flex justify-end flex-wrap">
+                    {!psbt && (
+                      <button
+                        onClick={() => buy()}
+                        className="m-6 z-[1] left-0 bg-brand_black text-white text-xl px-6 py-2 rounded hover:border-brand_blue hover:text-brand_blue border-2"
+                      >
+                        Submit
+                      </button>
+                    )}
+                    <button
+                      onClick={handleClose}
+                      className="m-6 z-[1] left-0 bg-brand_red text-white text-xl px-6 py-2 rounded  hover:bg-red-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="form p-2">
@@ -340,82 +370,47 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
                     </div>
                   </div>
                   <div className="mb-4 center">
-                    <div className="">
-                      <QRCode value={psbt} className="border border-white" />
-                      <p className="pt-3 text-xs text-white">
-                        Waiting for Transaction in mempool
-                      </p>
-                    </div>
                     <div className="flex flex-col justify-end items-end flex-wrap">
-                      <p className="w-full mx-6 my-2 z-[1] left-0 bg-brand_black text-white text-xl ">
+                      <p className="w-full my-2 z-[1] left-0 bg-brand_black text-white text-xl ">
                         {result?.for === "Buying" ? (
                           <>
                             Created PSBT for buying inscription #
                             <span className="inscriptionNumber">
                               {data?.inscription_number}
                             </span>{" "}
-                            for{" "}
-                            <span className="price">
-                              {saleData?.price || 0.1}{" "}
-                            </span>
-                            BTC:
                           </>
                         ) : (
                           <>PSBT generated to create Padding UTXO</>
                         )}
                       </p>
+                      {signedB64PSBT && (
+                        <button
+                          className="w-full my-6 bg-brand_blue text-white text-xl px-6 py-2 rounded  hover:bg-blue-800"
+                          onClick={() => broadcastTx()}
+                        >
+                          {result?.for === "Buying"
+                            ? "CONFIRM BUY"
+                            : "CREATE PADDING UTXO"}
+                        </button>
+                      )}
+                      <div className="flex flex-wrap w-full justify-between">
+                        <button
+                          onClick={() => setPSBT("")}
+                          className="w-full lg:w-5/12 bg-brand_red text-white text-xl px-6 py-1 rounded  hover:bg-red-800"
+                        >
+                          Back
+                        </button>
 
-                      {/* <button
-                        onClick={() => signWithUnisatWallet()}
-                        className="my-2 mx-6 z-[1] left-0 bg-yellow-600 w-full text-white text-xs px-6 py-2 rounded hover:bg-yellow-700 border-2"
-                      >
-                        Sign with UNISAT
-                      </button> */}
-
-                      <button
-                        onClick={() => setPSBT("")}
-                        className="w-full mx-6 my-2 z-[1] left-0 bg-brand_red text-white text-xl px-6 py-2 rounded  hover:bg-red-800"
-                      >
-                        Back
-                      </button>
-
-                      <button
-                        onClick={handleClose}
-                        className="w-full mx-6 my-2 z-[1] left-0 bg-brand_red text-white text-xl px-6 py-2 rounded  hover:bg-red-800"
-                      >
-                        Cancel
-                      </button>
+                        <button
+                          onClick={handleClose}
+                          className="w-full lg:w-5/12 bg-brand_red text-white text-xl px-6 py-1 rounded  hover:bg-red-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
-              {!psbt ? (
-                <div className="flex justify-end flex-wrap">
-                  {!psbt && (
-                    <button
-                      onClick={() => buy()}
-                      className="m-6 z-[1] left-0 bg-brand_black text-white text-xl px-6 py-2 rounded hover:border-brand_blue hover:text-brand_blue border-2"
-                    >
-                      Submit
-                    </button>
-                  )}
-                  {psbt && (
-                    <button
-                      onClick={() => setPSBT("")}
-                      className="m-6 z-[1] left-0 bg-brand_red text-white text-xl px-6 py-2 rounded  hover:bg-red-800"
-                    >
-                      Back
-                    </button>
-                  )}
-                  <button
-                    onClick={handleClose}
-                    className="m-6 z-[1] left-0 bg-brand_red text-white text-xl px-6 py-2 rounded  hover:bg-red-800"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <></>
               )}
             </div>
           </div>
