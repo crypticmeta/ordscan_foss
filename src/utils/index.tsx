@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import * as bitcoin from "bitcoinjs-lib";
 import secp256k1 from "@bitcoinerlab/secp256k1";
 import { processSellerPsbt } from "./Ordinals/buyOrdinal";
+import { notify } from "./notifications";
 
 let sellerSignedPsbt;
 bitcoin.initEccLib(secp256k1);
@@ -109,7 +110,7 @@ export async function selectUtxos(
 
   // Sort descending by value greater than amount
   utxos = utxos.filter((x) => x.value).sort((a, b) => b.value - a.value);
-  console.log(utxos, 'UTXOS')
+  console.log(utxos, "UTXOS");
 
   for (const utxo of utxos) {
     // Never spend a utxo that contains an inscription for cardinal purposes
@@ -123,9 +124,7 @@ export async function selectUtxos(
       recommendedFeeRate
     );
 
-
     if (takerUtxosAmount < amount) {
-      console.log("condition 1: payer has low balance than required")
       takerUtxos.push(utxo);
       takerUtxosAmount += utxo.value;
       additionalVouts++;
@@ -133,7 +132,6 @@ export async function selectUtxos(
       inscriptionOutputValue - estimatedFee + paddingUtxosAmount <
       2546
     ) {
-      console.log("condition 2: inscriptionValue + padding utxo isnt enough")
       paddingUtxos.push(utxo);
       paddingUtxosAmount += utxo.value;
       if (!takerPaddingRequired) {
@@ -150,68 +148,68 @@ export async function selectUtxos(
     }
   }
 
-   if (takerUtxosAmount < amount + 546) {
-     return {
-       status: "error",
-       message: `Not enough funds. Address has:  ${satToBtc(takerUtxosAmount)} BTC. Needed: ${satToBtc(amount + estimatedFee)} BTC`,
-     };
+  if (takerUtxosAmount < amount + 546) {
+    return {
+      status: "error",
+      message: `Not enough funds. Address has:  ${satToBtc(
+        takerUtxosAmount
+      )} BTC. Needed: ${satToBtc(amount + estimatedFee)} BTC`,
+    };
   }
-  if (
-     inscriptionOutputValue + paddingUtxosAmount - estimatedFee <
-     2546
-   ) {
-     const psbt = new bitcoin.Psbt({ network: undefined });
-     // add payment inputs
-     for (const utxo of takerUtxos) {
-       psbt.addInput({
-         hash: utxo.txid,
-         index: utxo.vout,
-         nonWitnessUtxo: bitcoin.Transaction.fromHex(
-           await getTxHexById(utxo.txid)
-         ).toBuffer(),
-       });
-     }
-     const paddingAmount =
-       5546 -
-       inscriptionOutputValue +
-       calculateFee(
-         vins + takerUtxos.length + paddingUtxos.length + 1,
-         vouts + additionalVouts,
-         recommendedFeeRate
-       );
-     // console.log('required padding amount ', paddingAmount)
-     psbt.addOutput({
-       address: payerAddress,
-       value: paddingAmount,
-     });
-     psbt.addOutput({
-       address: payerAddress,
-       value: utxos[0].value - paddingAmount - recommendedFeeRate,
-     });
+  if (inscriptionOutputValue + paddingUtxosAmount - estimatedFee < 2546) {
+    const psbt = new bitcoin.Psbt({ network: undefined });
+    // add payment inputs
+    for (const utxo of takerUtxos) {
+      psbt.addInput({
+        hash: utxo.txid,
+        index: utxo.vout,
+        nonWitnessUtxo: bitcoin.Transaction.fromHex(
+          await getTxHexById(utxo.txid)
+        ).toBuffer(),
+      });
+    }
+    console.log(recommendedFeeRate, "fee rate");
+    const fee = calculateFee(1, 2, recommendedFeeRate, payerAddress);
+    const paddingAmount = 5546 - inscriptionOutputValue + fee;
+    psbt.addOutput({
+      address: payerAddress,
+      value: paddingAmount,
+    });
+    psbt.addOutput({
+      address: payerAddress,
+      value: takerUtxosAmount - paddingAmount - fee,
+    });
 
-     console.log(psbt.toBase64(), "PSBT to generate a PADDING UTXO");
+    console.log(psbt.toBase64(), "PSBT to generate a PADDING UTXO");
+    notify({
+      type: "info",
+      message:
+        "You need extra UTXO because inscription output value is too low.",
+    });
 
-     return {
-       status: "success",
-       message: "Create Padding UTXO PSBT Generated",
-       data: { psbt: psbt.toBase64(), for: "Padding" },
-     };
-     throw new Error(`Not enough cardinal spendable funds to support the necessary padding.
+    return {
+      status: "success",
+      message: "Create Padding UTXO PSBT Generated",
+      data: { psbt: psbt.toBase64(), for: "Padding" },
+    };
+    throw new Error(`Not enough cardinal spendable funds to support the necessary padding.
 Address has:  ${satToBtc(paddingUtxosAmount)} BTC to pad the inscription
 Needed:          ${satToBtc(
-       5546 -
-         inscriptionOutputValue +
-         calculateFee(
-           vins + takerUtxos.length + paddingUtxos.length + 1,
-           vouts + additionalVouts,
-           recommendedFeeRate
-         )
-     )} BTC`);
-   }
+      5546 -
+        inscriptionOutputValue +
+        calculateFee(
+          vins + takerUtxos.length + paddingUtxos.length + 1,
+          vouts + additionalVouts,
+          recommendedFeeRate
+        )
+    )} BTC`);
+  }
 
- 
-
-  return {status:"success", message:"Generated utxos", data: {takerUtxos, paddingUtxos}};
+  return {
+    status: "success",
+    message: "Generated utxos",
+    data: { takerUtxos, paddingUtxos },
+  };
 }
 const generatePSBTGeneratingDummyUtxos = async (
   payerAddress,
@@ -263,12 +261,16 @@ export function calculateFee(
   vins,
   vouts,
   recommendedFeeRate,
+  address?,
   includeChangeOutput = true
 ) {
   const baseTxSize = 10;
-  const inSize = 180;
+  let inSize = 180;
   const outSize = 34;
 
+  if (address && address.startsWith("bc1p")) {
+    inSize = 58;
+  }
   //@ts-ignore
   const txSize =
     baseTxSize +
