@@ -27,7 +27,7 @@ interface OrdinalProp {
   saleData: Order;
 }
 function Buy({ data, saleData }: OrdinalProp): JSX.Element {
- //wallets  
+  //wallets
   const state = useContext(AppContext);
   const { doOpenAuth, signPsbt } = useConnect();
   const [wallets, setwallets] = useState([]);
@@ -41,49 +41,54 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
   const [psbt, setPSBT] = useState("");
 
   //hiro-sign
-  const [signedPsbt, setSignedPsbt] = useState("")
+  const [signedPsbt, setSignedPsbt] = useState("");
   const [signedB64PSBT, setSignedB64PSBT] = useState("");
-    const signTx = useCallback(
-      async (options: PsbtRequestOptions, network?: any) => {
-        {
-          const defaultNetwork = stacksMainnetNetwork;
+  const signTx = useCallback(
+    async (options: PsbtRequestOptions, network?: any) => {
+      {
+        const defaultNetwork = stacksMainnetNetwork;
 
-          return await signPsbt({
-            ...options,
-            network: network || defaultNetwork,
-            onFinish: async (data: PsbtData) => {
-              //sets signed psbt data in hex format
-              setSignedPsbt(data.hex);
-              return data.hex;
-              //  publishPSBT()
-            },
-            onCancel: () => {
-              console.log("popup closed!");
-            },
-          });
-        }
-      },
-      [signPsbt]
-    );
-
+        return await signPsbt({
+          ...options,
+          network: network || defaultNetwork,
+          onFinish: async (data: PsbtData) => {
+            //sets signed psbt data in hex format
+            setSignedPsbt(data.hex);
+            return data.hex;
+            //  publishPSBT()
+          },
+          onCancel: () => {
+            console.log("popup closed!");
+          },
+        });
+      }
+    },
+    [signPsbt]
+  );
 
   //getAddressFromHiroWallet
-    useEffect(() => {
-      if (selectedWallet === "Hiro" && state) {
-        const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
-          const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
-        setPayAddr(cardinal);
-        setReceiveAddr(ordinal);
+  useEffect(() => {
+    if (selectedWallet === "Hiro" && state?.userData) {
+      //if taproot or segwit address missing. redo auth.
+      if (
+        !state?.userData?.profile?.btcAddress?.p2tr?.mainnet ||
+        !state?.userData?.profile?.btcAddress?.p2wpkh?.mainnet
+      ) {
+        doOpenAuth();
       }
-    }, [selectedWallet, state]);
-  
-    useEffect(() => {
-      if (localStorage.getItem("btc-wallets")) {
-        setwallets(JSON.parse(localStorage.getItem("btc-wallets")) || []);
-      }
-    }, [data, selectedWallet]);
-  
-  
+      const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
+      const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
+      setPayAddr(cardinal);
+      setReceiveAddr(ordinal);
+    }
+  }, [doOpenAuth, selectedWallet, state]);
+
+  useEffect(() => {
+    if (localStorage.getItem("btc-wallets")) {
+      setwallets(JSON.parse(localStorage.getItem("btc-wallets")) || []);
+    }
+  }, [data, selectedWallet]);
+
   const handleOpen = () => {
     setOpen(true);
   };
@@ -122,90 +127,85 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
     }
   };
 
-    
- const signWithAvailableWallet = useCallback(
-   async (wallet, psbt) => {
-     let result = null;
-     if (wallet === "Unisat") result = await signPSBTUsingWallet(psbt, wallet);
-     else if (wallet === "Hiro") {
-       result = await signTx({
-         hex: base64ToHex(psbt),
-         allowedSighash: [0x01, 0x02, 0x03, 0x81, 0x82, 0x83],
-         signAtIndex: range(bitcoin.Psbt.fromBase64(psbt).inputCount),
-       });
-     }
+  const signWithAvailableWallet = useCallback(
+    async (wallet, psbt) => {
+      let result = null;
+      if (wallet === "Unisat") result = await signPSBTUsingWallet(psbt, wallet);
+      else if (wallet === "Hiro") {
+        result = await signTx({
+          hex: base64ToHex(psbt),
+          allowedSighash: [0x01, 0x02, 0x03, 0x81, 0x82, 0x83],
+          signAtIndex: range(bitcoin.Psbt.fromBase64(psbt).inputCount),
+        });
+      }
 
-     if (result?.status === "error") {
-       notify({ type: "error", message: result.message });
-     } else {
-       try {
-         if (result?.data?.signedPSBT != psbt) {
-           setSignedPsbt(result.data.signedPSBT);
-         }
-         // await publishPSBT(result?.data?.signedPSBT);
-       } catch (e) {
-         console.log(e, "error publishing");
-       }
-     }
-   },
-   [signTx]
- );
+      if (result?.status === "error") {
+        notify({ type: "error", message: result.message });
+      } else {
+        try {
+          if (result?.data?.signedPSBT != psbt) {
+            setSignedPsbt(result.data.signedPSBT);
+          }
+          // await publishPSBT(result?.data?.signedPSBT);
+        } catch (e) {
+          console.log(e, "error publishing");
+        }
+      }
+    },
+    [signTx]
+  );
 
   const signedPsbtDataToB64 = useCallback(async () => {
+    console.log(signedPsbt, "signedPsbt");
     const b64 = bitcoin.Psbt.fromHex(signedPsbt, {
       network: undefined,
     }).toBase64();
-    if(b64)
-      setSignedB64PSBT(b64);
-    }, [signedPsbt]);
+    if (b64) setSignedB64PSBT(b64);
+  }, [signedPsbt]);
 
-    useEffect(() => {
-      //converts available signedHePSBT to Base64 format for easy copy and ordscan, openordex link
-      if (signedPsbt && psbt) {
-        signedPsbtDataToB64();
-      }
-    }, [signedPsbt, psbt, signedPsbtDataToB64]);
-  
-  const broadcastTx = useCallback(
-    async() => {
-      try {
-         const psbt = bitcoin.Psbt.fromHex(signedPsbt);
-         if (selectedWallet == "Hiro") {
-           for (let i = 0; i < psbt.data.inputs.length; i++) {
-             try {
-               psbt.finalizeInput(i);
-             } catch (e) {
-               console.error(e);
-             }
-           }
-         }
-        const txHex = psbt.extractTransaction().toHex();
-        console.log(txHex, 'TXHEX')
-        //TODO: remove below line to enable Broadcasting TX
-        return 0
-         const res = await fetch(`${baseMempoolApiUrl}/tx`, {
-           method: "post",
-           body: txHex,
-         });
-         if (res.status != 200) {
-           return alert(
-             `Mempool API returned ${res.status} ${
-               res.statusText
-             }\n\n${await res.text()}`
-           );
-         }
+  useEffect(() => {
+    //converts available signedHePSBT to Base64 format for easy copy and ordscan, openordex link
+    if (signedPsbt && psbt) {
+      signedPsbtDataToB64();
+    }
+  }, [signedPsbt, psbt, signedPsbtDataToB64]);
 
-         const txId = await res.text();
-         alert("Transaction signed and broadcasted to mempool successfully");
-         window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
-       }
-      catch (e) {
-        console.error(e);
-        alert(e);
+  const broadcastTx = useCallback(async () => {
+    try {
+      const psbt = bitcoin.Psbt.fromHex(signedPsbt);
+      if (selectedWallet == "Hiro") {
+        for (let i = 0; i < psbt.data.inputs.length; i++) {
+          try {
+            psbt.finalizeInput(i);
+          } catch (e) {
+            console.error(e);
+          }
+        }
       }
-    },
-    [selectedWallet, signedPsbt],
-  )
+      const txHex = psbt.extractTransaction().toHex();
+      console.log(txHex, "TXHEX");
+      //TODO: remove below line to enable Broadcasting TX
+      // return 0
+      const res = await fetch(`${baseMempoolApiUrl}/tx`, {
+        method: "post",
+        body: txHex,
+      });
+      if (res.status != 200) {
+        return alert(
+          `Mempool API returned ${res.status} ${
+            res.statusText
+          }\n\n${await res.text()}`
+        );
+      }
+
+      const txId = await res.text();
+      alert("Transaction signed and broadcasted to mempool successfully");
+      window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
+    } catch (e) {
+      console.error(e);
+      alert(e);
+    }
+  }, [selectedWallet, signedPsbt]);
 
   return (
     <>

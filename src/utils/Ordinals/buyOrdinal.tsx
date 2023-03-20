@@ -11,6 +11,7 @@ import {
   selectUtxos,
   validateSellerPSBTAndExtractPrice,
 } from "utils";
+import { notify } from "utils/notifications";
 
 bitcoin.initEccLib(secp256k1);
 interface Result {
@@ -40,6 +41,7 @@ export const buyInscriptionPSBT = async (
 ) => {
   await processSellerPsbt({ output, signedPsbt: signedPSBT });
   price = validateSellerPSBTAndExtractPrice(signedPSBT, output);
+  notify({ type: "info", message: "PSBT is valid. 👍🏿" });
   if (price?.error) {
     return { status: "error", message: price?.error };
   }

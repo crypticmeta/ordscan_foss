@@ -90,7 +90,7 @@ export async function getServerSideProps({ params, req, res }) {
       }
     } else if (type == "number") {
       await axios
-        .get("https://ordinals.com/inscriptions/" + id)
+        .get(process.env.NEXT_PUBLIC_PROVIDER + "/inscriptions/" + id)
         .then(async (numberRes) => {
           const $ = load(numberRes.data);
           const inscription_id = $(".thumbnails")

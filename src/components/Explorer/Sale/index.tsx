@@ -60,9 +60,35 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
   const [sellerAddr, setSellerAddr] = useState(data.address);
   const [open, setOpen] = React.useState(false);
   const [psbt, setPSBT] = useState("");
-
+  // "cHNidP8BAF4CAAAAAQAuLA1Tq+GkBNpY4MwnkKifVjcuAhTLOeBCdIe2dHXTAAAAAAD/////AYCWmAAAAAAAIlEgqlJDYSgv/5o4KS7awvj9ZyQ9vwAP/mXKwXbdZVoCFT4AAAAAAAEAXgEAAAAB7nTFB5zUJX/di4Lm8JcYyPm0R5reTx05DqaWYW7PNhsAAAAAAP3///8BECcAAAAAAAAiUSCqUkNhKC//mjgpLtrC+P1nJD2/AA/+ZcrBdt1lWgIVPgAAAAABAwSDAAAAAAA=";
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+  const generateSalePSBT = useCallback(
+    async (wallet: string) => {
+      if (selectedWallet === "Hiro" && !state?.userData) {
+        //if using hiro wallet and connected to xverse by mistake
+        doOpenAuth();
+      }
+      if (!state?.userData?.profile?.btcAddress?.p2tr?.mainnet) {
+        //if using hiro wallet and but no taproot address found
+        doOpenAuth();
+      }
+      const tempPsbt = await generatePSBTListingInscriptionForSale(
+        data.output,
+        btcToSat(Number(price)),
+        sellerAddr,
+        wallet
+      ).catch((err) => console.error(err, "Error generating PSBT"));
+
+      setPSBT(tempPsbt || "");
+
+      //if psbt is present and a wallet has been selected, it will request signature
+      if (tempPsbt && selectedWallet) {
+        await signWithAvailableWallet(selectedWallet, tempPsbt);
+      }
+    },
+    [data.output, price, psbt, selectedWallet, sellerAddr]
+  );
 
   const signTx = useCallback(
     async (options: PsbtRequestOptions, network?: any) => {
@@ -87,59 +113,14 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
     [signPsbt]
   );
 
-  const signWithAvailableWallet = useCallback(
-    async (wallet, psbt) => {
-      let result = null;
-      if (wallet === "Unisat") result = await signPSBTUsingWallet(psbt, wallet);
-      else if (wallet === "Hiro") {
-        result = await signTx({
-          hex: base64ToHex(psbt),
-          allowedSighash: [0x01, 0x02, 0x03, 0x81, 0x82, 0x83],
-          signAtIndex: range(bitcoin.Psbt.fromBase64(psbt).inputCount),
-        });
-      }
-
-      if (result?.status === "error") {
-        notify({ type: "error", message: result.message });
-      } else if(selectedWallet!=="Hiro") {
-        try {
-          if (result?.data?.signedPSBT != psbt) {
-            setSignedTx(result.data.signedPSBT);
-          }
-          // await publishPSBT(result?.data?.signedPSBT);
-        } catch (e) {
-          console.log(e, "error publishing");
-        }
-      }
-    },
-    [selectedWallet, signTx]
-  );
-  const generateSalePSBT = useCallback(
-    async (wallet: string) => {
-      const tempPsbt = await generatePSBTListingInscriptionForSale(
-        data.output,
-        btcToSat(Number(price)),
-        sellerAddr,
-        wallet
-      ).catch((err) => console.error(err, "Error generating PSBT"));
-
-      setPSBT(tempPsbt || "");
-
-      //if psbt is present and a wallet has been selected, it will request signature
-      if (tempPsbt && selectedWallet) {
-        await signWithAvailableWallet(selectedWallet, tempPsbt);
-      }
-    },
-    [data.output, price, selectedWallet, sellerAddr, signWithAvailableWallet]
-  );
-
   const submitSignedPSBT = async () => {
     const result = await submitSignedSalePsbt(signedTx, psbt, selectedWallet);
     if (result.status === "success" && result.data?.signedPSBT) {
       try {
         notify({ type: "success", message: "Signed successfully" });
+        // console.log(data.output)
         //TODO: Uncomment to enable publishing to orderbook
-        // await publishPSBT(result?.data?.signedPSBT);
+        await publishPSBT(result?.data?.signedPSBT);
       } catch (e) {}
     } else if (result.status === "error") {
       notify({ type: result.status, message: result.message });
@@ -147,8 +128,8 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
   };
 
   useEffect(() => {
-    if (selectedWallet === "Hiro" && state?.userData) {
-      const cardinal = state?.userData?.profile.btcAddress.p2wpkh.mainnet;
+    if (selectedWallet === "Hiro" && state?.userData?.profile) {
+      const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
       setSellerAddr(cardinal);
     }
   }, [selectedWallet, state]);
@@ -172,7 +153,8 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
           ["n", "mainnet"], // Network name (e.g. "mainnet", "signet")
           ["t", "sell"], // Type of order (e.g. "sell", "buy")
           ["i", data.id], // Inscription ID
-          ["u", data.output.split("/")[2]], // Inscription UTXO
+          ["m", data.inscription_number], // Inscription number
+          ["u", data.output], // Inscription UTXO
           ["s", JSON.stringify(btcToSat(Number(price)))], // Price in sats
           ["x", "twelveFrog"], // Exchange name (e.g. "openordex")
         ],
@@ -187,15 +169,15 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
           type: "succes",
           message: "Successfully Listed the inscription for sale",
         });
-        setSaleData({
-          id: data.id,
-          inscriptionId: data.id,
-          price,
-          signedPsbt: signedPsbt,
-          createdAt: new Date().toDateString(),
-          type: "sell",
-          utxo: data.output.split("/")[2],
-        });
+        // setSaleData({
+        //   id: data.id,
+        //   inscriptionId: data.id,
+        //   price,
+        //   signedPsbt: signedPsbt,
+        //   createdAt: new Date().toDateString(),
+        //   type: "sell",
+        //   utxo: data.output,
+        // });
         return true;
       });
       pub.on("failed", (reason) => {
@@ -213,6 +195,34 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
     [data.id, data.output, price, relay, signedTx]
   );
 
+  const signWithAvailableWallet = useCallback(
+    async (wallet, psbt) => {
+      let result = null;
+      if (wallet === "Unisat") result = await signPSBTUsingWallet(psbt, wallet);
+      else if (wallet === "Hiro") {
+        result = await signTx({
+          hex: base64ToHex(psbt),
+          allowedSighash: [0x01, 0x02, 0x03, 0x81, 0x82, 0x83],
+          signAtIndex: range(bitcoin.Psbt.fromBase64(psbt).inputCount),
+        });
+      }
+
+      if (result?.status === "error") {
+        notify({ type: "error", message: result.message });
+      } else {
+        try {
+          if (result?.data?.signedPSBT != psbt) {
+            setSignedTx(result.data.signedPSBT);
+          }
+          // await publishPSBT(result?.data?.signedPSBT);
+        } catch (e) {
+          console.log(e, "error publishing");
+        }
+      }
+    },
+    [signTx]
+  );
+
   useEffect(() => {
     if (localStorage.getItem("btc-wallets")) {
       setwallets(JSON.parse(localStorage.getItem("btc-wallets")) || []);
@@ -225,7 +235,7 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
     const tempSaleData = {
       id: data.id,
       inscriptionId: data.id,
-      price: Number(price),
+      price,
       signedPsbt: result.data.signedPSBT,
       createdAt: new Date().toDateString(),
       type: "sell",
@@ -248,6 +258,8 @@ function Sale({ data, setSaleData }: OrdinalProp): JSX.Element {
       signedPsbtDataToB64();
     }
   }, [signedTx, psbt, signedPsbtDataToB64]);
+
+  
 
   return (
     <>

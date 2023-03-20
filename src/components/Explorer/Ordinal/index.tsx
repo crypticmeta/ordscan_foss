@@ -458,7 +458,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
                   <p className=" text-sm pt-1 flex items-center justify-center">
                     <span>Open</span>
                     <Link
-                      href={`https://openordex.org/inscription?number=${data.inscription_number}#signedSalePsbt=${saleData?.signedPsbt}`}
+                      href={`https://openordex.org/inscription?number=${data.id}`}
                       target="#"
                     >
                       <BiLinkExternal className="text-xl ml-3 cursor-pointer" />
