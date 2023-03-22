@@ -471,11 +471,11 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
             <></>
           )}
         </div>
-        {/* {Number(data.output_value) < 8000 && !loading ? (
+        {Number(data.output_value) < 8000 && !loading ? (
           <AddPadding data={data} saleData={saleData} />
         ) : (
           <></>
-        )} */}
+        )}
         {saleData?.signedPsbt && saleData?.price && !loading ? (
           <Buy data={data} saleData={saleData} />
         ) : (

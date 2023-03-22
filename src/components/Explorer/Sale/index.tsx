@@ -121,7 +121,7 @@ function Sale({ data, setSaleData, saleData }: OrdinalProp): JSX.Element {
         notify({ type: "success", message: "Signed successfully" });
         console.log(result)
         //TODO: Uncomment to enable publishing to orderbook
-        await publishPSBT(result?.data?.signedPSBT);
+        // await publishPSBT(result?.data?.signedPSBT);
       } catch (e) {
         console.log(e, 'error listing')
       }

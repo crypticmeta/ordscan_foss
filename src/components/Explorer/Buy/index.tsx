@@ -132,7 +132,6 @@ function Buy({ data, saleData }: OrdinalProp): JSX.Element {
       notify({ type: "error", message: result.message });
     } else if (result.status === "success") {
       setPSBT(result.data.psbt);
-      console.log(result.data, "setting result");
       setResult(result.data);
       //if psbt is present and a wallet has been selected, it will request signature
       if (result.data.psbt && selectedWallet) {
