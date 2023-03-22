@@ -107,14 +107,28 @@ const Card = ({ item, admin }) => {
                 src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
               />
             ) : (
-              <iframe
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                sandbox="allow-scripts allow-same-origin"
-                allow=""
-                className={`overflow-hidden bg-white h-[100px] w-[100px] center no-scrollbar`}
-                src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
-              ></iframe>
+              <>
+                {item.icon_type.includes("video") ? (
+                  <video
+                    muted
+                    autoPlay
+                    className={`overflow-hidden object-contain w-full h-full`}
+                  >
+                    <source
+                      src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
+                    />
+                  </video>
+                ) : (
+                  <iframe
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    sandbox="allow-scripts allow-same-origin"
+                    allow=""
+                    className={`overflow-hidden bg-white h-[100px] w-[100px] center no-scrollbar`}
+                    src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
+                  ></iframe>
+                )}
+              </>
             )}
           </div>
           <div className="p-3 font-bold text-yellow-500 flex justify-between w-full items-center">

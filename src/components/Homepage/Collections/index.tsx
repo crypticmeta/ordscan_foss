@@ -1,9 +1,9 @@
-import usePagination from 'components/Others/Pagination';
-import Link from 'next/link';
-import React, { useState } from 'react'
-import Image from 'next/image'
-import { BsFillPatchCheckFill } from 'react-icons/bs';
-import Tooltip from '@mui/material/Tooltip';
+import usePagination from "components/Others/Pagination";
+import Link from "next/link";
+import React, { useState } from "react";
+import Image from "next/image";
+import { BsFillPatchCheckFill } from "react-icons/bs";
+import Tooltip from "@mui/material/Tooltip";
 function Collections({ collections }) {
   return (
     <div className="text-white py-14 lg:pt-0 md:pr-10  overflow-hidden">
@@ -16,10 +16,9 @@ function Collections({ collections }) {
         </button>
       </div>
       <div className="center flex-wrap">
-        {collections
-          .map((item: any, idx: number) => {
-            if (idx <12) return <Card key={item._id} item={item} />;
-          })}
+        {collections.map((item: any, idx: number) => {
+          if (idx < 12) return <Card key={item._id} item={item} />;
+        })}
       </div>
     </div>
   );
@@ -46,14 +45,28 @@ const Card = ({ item }) => {
                 src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
               />
             ) : (
-              <iframe
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                sandbox="allow-scripts allow-same-origin"
-                allow=""
-                className={`overflow-hidden bg-white h-[100px] w-[100px] center no-scrollbar`}
-                src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
-              ></iframe>
+              <>
+                {item?.icon_type?.includes("video") ? (
+                  <video
+                    muted
+                    autoPlay
+                    className={`overflow-hidden object-contain w-full h-full`}
+                  >
+                    <source
+                      src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
+                    />
+                  </video>
+                ) : (
+                  <iframe
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    sandbox="allow-scripts allow-same-origin"
+                    allow=""
+                    className={`overflow-hidden bg-white h-[100px] w-[100px] center no-scrollbar`}
+                    src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.inscription_icon}`}
+                  ></iframe>
+                )}
+              </>
             )}
           </div>
           <div className="p-3 font-bold text-brand_red flex flex-col justify-evenly">
@@ -76,4 +89,4 @@ const Card = ({ item }) => {
     </div>
   );
 };
-export default Collections
+export default Collections;

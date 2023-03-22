@@ -281,14 +281,13 @@ const Card = ({ item, collection }) => {
       <Link prefetch={false} href={`/search/${encodeURIComponent(item.id)}`}>
         <div className=" bg-brand_black h-full w-full shadow-xl rounded-2xl">
           <div className="h-[300px] overflow-hidden relative">
-            {
-              item?.price >0  && (
-                <div className="z-10 absolute bottom-0 left-0 right-0 bg-brand_blue text-white text-xs text-center py-2 px-2">
-              <p>On Sale For {satToBtc(item?.price)} BTC</p>
-            </div>
-              )
-            }
-            {collection.icon_type.includes("image") ? (
+            {item?.price > 0 && (
+              <div className="z-10 absolute bottom-0 left-0 right-0 bg-brand_blue text-white text-xs text-center py-2 px-2">
+                <p>On Sale For {satToBtc(item?.price)} BTC</p>
+              </div>
+            )}
+            {collection.icon_type.includes("image") ||
+            item?.content_type?.includes("image") ? (
               <Image
                 loading="lazy"
                 style={{ imageRendering: "pixelated" }}
@@ -301,14 +300,23 @@ const Card = ({ item, collection }) => {
                 src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.id}`}
               />
             ) : (
-              <iframe
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                sandbox="allow-scripts allow-same-origin"
-                allow=""
-                className={`overflow-hidden bg-white h-full w-full center no-scrollbar`}
-                src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.id}`}
-              ></iframe>
+              <>
+                {collection.content_type?.includes("video") ||
+                item?.content_type?.includes("video") ? (
+                  <video muted autoPlay>
+                    <source
+                      src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.id}`}
+                    />
+                  </video>
+                ) : (
+                  <iframe
+                    referrerPolicy="no-referrer"
+                    sandbox="allow-scripts allow-same-origin"
+                    className={`overflow-hidden`}
+                    src={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${item.id}`}
+                  ></iframe>
+                )}
+              </>
             )}
           </div>
           <div className="p-3 font-bold text-brand_red flex items-center justify-between">

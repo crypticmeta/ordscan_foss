@@ -383,7 +383,7 @@ function Form() {
                 rows={5}
                 placeholder={"Enter Project Description"}
                 value={description}
-                maxLength={200}
+                maxLength={1000}
                 onChange={(e) => setDescription(e.target.value)}
                 className=" text-xs md:text-base bg-brand_black w-full px-3 py-3 focus:outline-none rounded border-white border text-white"
               />
