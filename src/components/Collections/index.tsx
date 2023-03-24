@@ -103,9 +103,7 @@ function Collections(): JSX.Element {
               className="w-[300px] h-[400px] overflow-hidden text-white p-3"
             >
               <Link
-                href={`/${
-                  router?.asPath.includes("admin") ? "admin/" : ""
-                }collections/${encodeURIComponent(item.slug)}`}
+                href={`/collections/${encodeURIComponent(item.slug)}`}
               >
                 <div className="bg-brand_black rounded h-full shadow brightness-90 hover:brightness-110">
                   <p className="hidden">{item.icon_type}</p>
@@ -118,11 +116,6 @@ function Collections(): JSX.Element {
                     {item?.verified && (
                       <div className="absolute top-0 right-0 bg-yellow-500 text-xs p-2">
                         Verified
-                      </div>
-                    )}
-                    {item?.parsedAll && router?.asPath?.includes("admin") && (
-                      <div className="absolute bottom-0 right-0 bg-yellow-500 text-xs p-2">
-                        Parsed
                       </div>
                     )}
                     {item?.icon_type === "image" || !item?.icon_type ? (

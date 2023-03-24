@@ -74,7 +74,6 @@ function Index() {
               <Card
                 item={item}
                 key={item._id}
-                admin={router?.asPath.includes("admin")}
               />
             ))}
           </div>
@@ -83,12 +82,12 @@ function Index() {
     </div>
   );
 }
-const Card = ({ item, admin }) => {
+const Card = ({ item}) => {
   return (
     <div className={`w-full`}>
       <Link
         prefetch={false}
-        href={`${admin ? "/admin" : ""}/collections/${encodeURIComponent(
+        href={`/collections/${encodeURIComponent(
           item.slug
         )}`}
       >

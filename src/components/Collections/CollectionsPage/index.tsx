@@ -159,28 +159,6 @@ function CollectionPage() {
                 </p>
               )}
               <div className="w-full flex justify-center lg:justify-start flex-wrap">
-                {router.asPath.includes("admin") && (
-                  <div className="w-full flex flex-wrap justify-between lg:w-8/12">
-                    <button className="services-gradient m-2 text-white uppercase font-thin px-4 py-2 text-xs">
-                      <CSVLink
-                        data={downloadData}
-                        headers={headers}
-                        filename={collection?.name}
-                      >
-                        <div className="flex items-center justify-center">
-                          <FaFileDownload className="mr-3" /> Collection Details
-                        </div>
-                      </CSVLink>
-                    </button>
-                    <button className="bg-brand_blue m-2 text-white uppercase font-thin px-4 py-2 text-xs">
-                      <Link href={`${router.asPath}/update`}>Edit</Link>
-                    </button>
-                    <button className="bg-brand_red m-2 text-white uppercase font-thin px-4 py-2 text-xs">
-                      Delete
-                    </button>
-                  </div>
-                )}
-
                 <div className="flex pt-4 space-x-2 text-xl text-white">
                   {collection?.twitter_link && (
                     <Link target="#" href={collection?.twitter_link || "/"}>
