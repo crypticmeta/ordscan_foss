@@ -291,15 +291,16 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
 
   return (
     <>
-      <div className="center flex-col my-2">
+      {/* <div className="center flex-col my-2">
         <button
+          disabled={ true}
           onClick={handleOpen}
           className="bg-brand_black text-white text-xl px-6 py-2 rounded hover:border-brand_red hover:text-brand_red border-2"
         >
           Add padding to this Inscription
-          <span className="text-xs text-brand_red"> Beta</span>
+          <span className="text-xs text-brand_red"> soon</span>
         </button>
-      </div>
+      </div> */}
 
       {open ? (
         <Modal
