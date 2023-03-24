@@ -3,10 +3,6 @@ import secp256k1 from "@bitcoinerlab/secp256k1";
 import {
   getTxHexById,
   getWalletAddress,
-  recommendedFeeRate,
-  satToBtc,
-  selectUtxos,
-  validateSellerPSBTAndExtractPrice,
   witnessStackToScriptWitness,
 } from "utils";
 
@@ -16,16 +12,6 @@ interface Result {
   message: string;
   data: any;
 }
-let sellerSignedPsbt;
-const bitcoinPriceApiUrl = "https://blockchain.info/ticker?cors=true";
-const baseMempoolUrl = true
-  ? "https://mempool.space"
-  : "https://mempool.space/signet";
-const baseMempoolApiUrl = `${baseMempoolUrl}/api`;
-const ordinalsExplorerUrl = process.env.NEXT_PUBLIC_PROVIDER;
-let paymentUtxos;
-const numberOfDummyUtxosToCreate = 1;
-const feeLevel = "hourFee";
 
 export async function generatePSBTListingInscriptionForSale(
   ordinalOutput,
@@ -78,7 +64,7 @@ export async function generatePSBTListingInscriptionForSale(
 
   return psbt.toBase64();
 }
-const toXOnly = (pubKey) =>
+export const toXOnly = (pubKey) =>
   pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
 export const submitSignedSalePsbt = async (
@@ -121,6 +107,7 @@ export const submitSignedSalePsbt = async (
     });
     if (wallet == "Hiro") {
       for (let i = 0; i < testPsbt.data.inputs.length; i++) {
+        console.log(testPsbt.data.inputs[i]);
         if (
           testPsbt.data.inputs[i].tapKeySig?.length &&
           !testPsbt.data.inputs[i]?.finalScriptWitness?.length
@@ -165,30 +152,3 @@ export const submitSignedSalePsbt = async (
     status: "success",
   };
 };
-
-// async function signPSBTUsingWalletAndBroadcast(psbt, unisat) {
-//   try {
-//     await unisat.requestAccounts();
-//     const signedPsbt = await unisat.signPsbt(base64ToHex(input.value));
-//     const txHex = bitcoin.Psbt.fromHex(signedPsbt).extractTransaction().toHex();
-
-//     const res = await fetch(`${baseMempoolApiUrl}/tx`, {
-//       method: "post",
-//       body: txHex,
-//     });
-//     if (res.status != 200) {
-//       return alert(
-//         `Mempool API returned ${res.status} ${
-//           res.statusText
-//         }\n\n${await res.text()}`
-//       );
-//     }
-
-//     const txId = res.text();
-//     alert("Transaction signed and broadcasted to mempool successfully");
-//     window.open(`${baseMempoolUrl}/tx/${txId}`, "_blank");
-//   } catch (e) {
-//     console.error(e);
-//     alert(e);
-//   }
-// }

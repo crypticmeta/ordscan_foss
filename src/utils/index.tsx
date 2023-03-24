@@ -220,52 +220,82 @@ Needed:          ${satToBtc(
     data: { takerUtxos, paddingUtxos },
   };
 }
-const generatePSBTGeneratingDummyUtxos = async (
-  payerAddress,
-  numberOfDummyUtxosToCreate,
-  payerUtxos
-) => {
-  const psbt = new bitcoin.Psbt({ network: undefined });
 
-  let totalValue = 0;
-  for (const utxo of payerUtxos) {
-    const tx = bitcoin.Transaction.fromHex(await getTxHexById(utxo.txid));
-    for (const output in tx.outs) {
-      try {
-        tx.setWitness(Number(output), []);
-      } catch {}
+export async function selectPaddingUtxos(
+  utxos,
+  amount,
+  vins,
+  vouts,
+  recommendedFeeRate,
+  payerAddress
+) {
+  const selectedUtxos = [];
+  let selectedAmount = 0;
+
+  // Sort descending by value
+  utxos = utxos
+    .sort((a, b) => b.value - a.value);
+
+  for (const utxo of utxos) {
+    // Never spend a utxo that contains an inscription for cardinal purposes
+    if (await doesUtxoContainInscription(utxo)) {
+      continue;
     }
-    psbt.addInput({
-      hash: utxo.txid,
-      index: utxo.vout,
-      nonWitnessUtxo: tx.toBuffer(),
-      // witnessUtxo: tx.outs[utxo.vout],
-    });
+    
+    if (utxo.value > 1000) {
+      selectedAmount += utxo.value;
+      selectedUtxos.push(utxo);
+    }
 
-    totalValue += utxo.value;
+    if (
+      selectedAmount >=
+      amount +
+        calculateFee(vins + selectedUtxos.length, vouts, recommendedFeeRate)
+    ) {
+      
+      break;
+    }
   }
 
-  for (let i = 0; i < numberOfDummyUtxosToCreate; i++) {
-    psbt.addOutput({
-      address: payerAddress,
-      value: dummyUtxoValue,
-    });
+  
+    console.log(selectedAmount, amount, "compare");
+  if (selectedAmount < amount) {
+    //     throw new Error(`Not enough cardinal spendable funds.
+    // Address has:  ${satToBtc(selectedAmount)} BTC
+    // Needed:  ${satToBtc(amount)} BTC`);
+
+    return {
+      status: "error",
+      message: `Address has ${satToBtc(selectedAmount)} BTC Needs ${satToBtc(
+        amount
+      )} BTC`,
+    };
   }
 
-  const fee = calculateFee(
-    psbt.txInputs.length,
-    psbt.txOutputs.length,
-    await recommendedFeeRate()
-  );
+  return selectedUtxos;
+  async function doesUtxoContainInscription(utxo) {
+    const html = await fetch(
+      `${ordinalsExplorerUrl}/output/${utxo.txid}:${utxo.vout}`
+    ).then((response) => response.text());
 
-  // Change utxo
-  psbt.addOutput({
-    address: payerAddress,
-    value: totalValue - numberOfDummyUtxosToCreate * dummyUtxoValue - fee,
+    return html.match(/class=thumbnails/) !== null;
+  }
+
+}
+export function removeFalsey(arr) {
+  // newly created array
+  let newArr = [];
+
+  // Iterate the array using the forEach loop
+  arr.forEach((k) => {
+    // check for the truthy value
+    if (k) {
+      newArr.push(k);
+    }
   });
-
-  return psbt.toBase64();
-};
+  // return the new array
+  return newArr;
+}
 export function calculateFee(
   vins,
   vouts,
@@ -287,9 +317,16 @@ export function calculateFee(
     vouts * outSize +
     //@ts-ignore
     includeChangeOutput * outSize;
+  
   const fee = txSize * recommendedFeeRate;
 
   return fee;
+}
+
+export function calculateTxSize(
+  psbt
+) {
+ return psbt.data.globalMap.unsignedTx.toBuffer().length
 }
 export function btcToSat(btc) {
   return Math.floor(Number(btc) * Math.pow(10, 8));
