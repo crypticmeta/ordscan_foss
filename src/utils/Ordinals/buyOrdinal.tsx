@@ -174,7 +174,8 @@ const generatePSBTBuyingInscription = async (
   const fee = calculateFee(
     psbt.txInputs.length,
     psbt.txOutputs.length,
-    await recommendedFeeRate()
+    await recommendedFeeRate(),
+    payerAddress
   );
   let remainingPaddingValue = 0;
   paddingUtxos.forEach((u) => (remainingPaddingValue += u.value));
@@ -205,7 +206,7 @@ const generatePSBTBuyingInscription = async (
     remainingPaddingValue -= 10000 - inscriptionUtxoValue + fee;
 
     psbt.addOutput({
-      address: receiverAddress,
+      address: payerAddress,
       value: remainingPaddingValue - fee,
     });
   } else {

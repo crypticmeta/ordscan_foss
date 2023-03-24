@@ -36,9 +36,11 @@ const App: FC<AppProps> = ({ Component, pageProps }) => {
     useAuth();
   const [ip, setIP] = useState("");
   const getData = async () => {
-    const res = await axios.get("https://geolocation-db.com/json/");
+    try {
+      const res = await axios.get("https://geolocation-db.com/json/")
     setIP(res.data.IPv4 || "none");
-    if (res.data.IPv4) Mixpanel.identify(res.data.IPv4);
+    if (res.data.IPv4) Mixpanel.identify(res.data.IPv4); }
+    catch(e){}
   };
   useEffect(() => {
     getData();

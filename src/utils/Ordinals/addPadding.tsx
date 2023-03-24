@@ -20,12 +20,6 @@ interface Result {
   message: string;
   data: any;
 }
-const bitcoinPriceApiUrl = "https://blockchain.info/ticker?cors=true";
-const baseMempoolUrl = true
-  ? "https://mempool.space"
-  : "https://mempool.space/signet";
-const baseMempoolApiUrl = `${baseMempoolUrl}/api`;
-const ordinalsExplorerUrl = process.env.NEXT_PUBLIC_PROVIDER;
 let paymentUtxos;
 const numberOfDummyUtxosToCreate = 1;
 const feeLevel = "hourFee";
@@ -37,6 +31,7 @@ export const addPaddingPSBT = async (
   inscriptionOutputValue: number,
   selectedUtxos: UTXO[],
   wallet,
+  maxSats,
   feeRate
 ) => {
   paymentUtxos = selectedUtxos;
@@ -47,6 +42,7 @@ export const addPaddingPSBT = async (
     inscriptionOutputValue,
     output,
     wallet,
+    maxSats,
     feeRate
   );
 
@@ -103,46 +99,53 @@ const generatePaddingPSBT = async (
   inscriptionOutputValue,
   output,
   wallet,
+  maxSats,
   feeRate
 ) => {
-  console.log(feeRate, 'feerate')
-  const inputs = []
+  console.log(feeRate, "feerate", maxSats, "maxSats");
+  const inputs = [];
+  const outputs = []
   const psbt = new bitcoin.Psbt({ network: undefined });
   const [ordinalUtxoTxId, ordinalUtxoVout] = output.split(":");
-  const tx: any = bitcoin.Transaction.fromHex(await getTxHexById(ordinalUtxoTxId));
-   const installedWalletName = wallet;
-   if (installedWalletName != "Hiro") {
-     for (const output in tx.outs) {
-       try {
-         tx.setWitness(parseInt(output), []);
-       } catch {}
-     }
-   }
+  const tx: any = bitcoin.Transaction.fromHex(
+    await getTxHexById(ordinalUtxoTxId)
+  );
+  const installedWalletName = wallet;
+  if (installedWalletName != "Hiro") {
+    for (const output in tx.outs) {
+      try {
+        tx.setWitness(parseInt(output), []);
+      } catch {}
+    }
+  }
   console.log("add ordinal as first input");
   //ordinal
-  inputs.push(inscriptionOutputValue)
-   const input: any = {
-     hash: ordinalUtxoTxId,
-     index: parseInt(ordinalUtxoVout),
-     nonWitnessUtxo: tx.toBuffer(),
-     witnessUtxo: tx.outs[ordinalUtxoVout],
-   };
-   if (installedWalletName == "Hiro") {
-     const state = JSON.parse(localStorage.getItem("blockstack-session"));
-     // const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
-     // const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
-     console.log(state.userData.profile.btcPublicKey.p2tr,'state pt2r')
-     await getWalletAddress(wallet);
-     input.tapInternalKey = toXOnly(
-       tx
-         .toBuffer()
-         .__proto__.constructor(state.userData.profile.btcPublicKey.p2tr, "hex")
-     );
-   }
+  inputs.push({
+    value: inscriptionOutputValue,
+    address: receiveAddr
+  });
+  const input: any = {
+    hash: ordinalUtxoTxId,
+    index: parseInt(ordinalUtxoVout),
+    nonWitnessUtxo: tx.toBuffer(),
+    witnessUtxo: tx.outs[ordinalUtxoVout],
+  };
+  if (installedWalletName == "Hiro") {
+    const state = JSON.parse(localStorage.getItem("blockstack-session"));
+    // const cardinal = state.userData.profile.btcAddress.p2wpkh.mainnet;
+    // const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
+    console.log(state.userData.profile.btcPublicKey.p2tr, "state pt2r");
+    await getWalletAddress(wallet);
+    input.tapInternalKey = toXOnly(
+      tx
+        .toBuffer()
+        .__proto__.constructor(state.userData.profile.btcPublicKey.p2tr, "hex")
+    );
+  }
 
   psbt.addInput(input);
   //check ordinal input finalization
-  
+
   let totalValue = 0;
   let totalPaymentValue = 0;
   console.log(paymentUtxos, "padding utxos");
@@ -158,7 +161,10 @@ const generatePaddingPSBT = async (
     }
 
     console.log("add padding utxos");
-     inputs.push(utxo.value);
+    inputs.push({
+      value: utxo.value,
+      address: payAddr
+    });
     psbt.addInput({
       hash: utxo.txid,
       index: utxo.vout,
@@ -174,37 +180,67 @@ const generatePaddingPSBT = async (
   console.log({
     inputs: psbt.txInputs.length,
     outputs: psbt.txOutputs.length,
-    feeRate: feeRate||await recommendedFeeRate(),
+    feeRate: feeRate || (await recommendedFeeRate()),
     totalValue,
   });
-  
+
   const fee = calculateFee(
     psbt.txInputs.length,
     psbt.txOutputs.length,
     feeRate || (await recommendedFeeRate()),
     receiveAddr
   );
-  console.log("fee ", fee)
-    console.log({ outputValue: inscriptionOutputValue + (totalValue - fee) });
+  console.log("fee ", fee);
 
-  psbt.addOutput({
-    address: receiveAddr,
-    value: inscriptionOutputValue + (totalValue - fee),
-  });
+  //inscription output
 
-  
+  if (maxSats < totalValue - 10000) {
+    outputs.push({
+      value: inscriptionOutputValue + maxSats,
+      address: receiveAddr
+    });
+    psbt.addOutput({
+      address: receiveAddr,
+      value: inscriptionOutputValue + maxSats,
+    });
+    outputs.push({
+      value: totalValue - maxSats - fee,
+      address: payAddr
+    });
+    psbt.addOutput({
+      address: payAddr,
+      value: totalValue - maxSats - fee,
+    });
+    console.log({
+      outputValue0: inscriptionOutputValue + maxSats,
+      outputValue1: totalValue - maxSats - fee,
+    });
+  } else {
+    outputs.push({
+      value: inscriptionOutputValue + (maxSats - fee),
+      address: receiveAddr
+    });
+    psbt.addOutput({
+      address: receiveAddr,
+      value: inscriptionOutputValue + (maxSats - fee),
+    });
+    console.log({
+      outputValue0: inscriptionOutputValue + (maxSats - fee),
+    });
+  }
+
   const txSize = calculateTxSize(psbt);
-  console.log(fee, 'calculate Fee Rate', txSize);
+  console.log(fee, "calculate Fee Rate", txSize);
 
   return {
     status: "success",
     message: "Successfully created psbt",
     data: {
       psbt: psbt.toBase64(),
-      output: inscriptionOutputValue + (totalValue - fee),
+      outputs: outputs,
       inputs,
       fee: fee,
-      feeRate: (fee/txSize).toFixed(2)
+      feeRate: (fee / txSize).toFixed(2),
     },
   };
 };

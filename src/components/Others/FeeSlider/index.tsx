@@ -22,7 +22,22 @@ function FeeSlider({ fee, setFee }) {
 
     useEffect(() => {
       getRecommendedFee()
-    }, [])
+    }, []) 
+  
+  useEffect(() => {
+    if(fee!=current)
+    setMark([
+      { value: current, label: `${current} sats/vB (recommended)` },
+      { value: fee, label: `${fee} sats/vB` },
+      { value: current+10, label: `${current+10} sats/vB` },
+    ]);
+    else {
+      setMark([
+        { value: current, label: `${current} sats/vB (recommended)` },
+        { value: current + 10, label: `${current + 10} sats/vB` },
+      ]);
+    }
+  }, [current, fee]);
     
     
 
@@ -31,7 +46,7 @@ function FeeSlider({ fee, setFee }) {
       <div className="center">
         <p className="text-xs text-center mr-2">
           {" "}
-          Selected Fee Rate: {fee} sats/vB{" "}
+         Approx Selected Fee Rate: {fee} sats/vB{" "}
         </p>
         <Tooltip
           title={
@@ -50,7 +65,7 @@ function FeeSlider({ fee, setFee }) {
       <Stack spacing={2} direction="row" sx={{ mb: 1 }} alignItems="center">
         <Slider
           min={0}
-          max={current + 20}
+          max={current + 10}
           aria-label="Fee"
           value={fee}
           onChange={handleChange}

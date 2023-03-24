@@ -18,7 +18,6 @@ import { stacksMainnetNetwork } from "common/utils";
 import copy from "copy-to-clipboard";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { BsFillCheckCircleFill } from "react-icons/bs";
-import QRCode from "react-qr-code";
 import { Inscription, UTXO } from "types";
 import {
   addressHasTxInMempool,
@@ -37,6 +36,8 @@ import secp256k1 from "@bitcoinerlab/secp256k1";
 import { addPaddingPSBT, paddingUTXOCheck } from "utils/Ordinals/addPadding";
 import FeeSlider from "components/Others/FeeSlider";
 import { submitSignedSalePsbt } from "utils/Ordinals/sellOrdinal";
+import { shortForm } from "utils/shortForm";
+import MaxAmount from "./MaxAmount";
 interface OrdinalProp {
   data: Inscription;
   saleData: any;
@@ -50,6 +51,7 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
   const [selectedWallet, setSelectedWallet] = useState("");
 
   //add-padding
+  const [maxSats, setMaxSats] = useState(0)
   const [receiveAddr, setReceiveAddr] = useState(""); //ordinal address
   const [payAddr, setPayAddr] = useState(""); //btc address
   const [open, setOpen] = useState(false);
@@ -77,6 +79,9 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
           onFinish: async (data: PsbtData) => {
             //sets signed psbt data in hex format
             setSignedPsbt(data.hex);
+            console.log(data.hex, 'signed hex')
+            // const tx = bitcoin.Transaction.fromHex(data.hex);
+            // console.log(tx, 'signedPSBT')
             return data.hex;
             //  publishPSBT()
           },
@@ -103,10 +108,7 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
       const ordinal = state.userData.profile.btcAddress.p2tr.mainnet;
       setPayAddr(cardinal);
       setReceiveAddr(ordinal);
-    } else {
-      setPayAddr(data.address);
-      setReceiveAddr(data.address);
-    }
+    } 
   }, [doOpenAuth, selectedWallet, state]);
 
   useEffect(() => {
@@ -149,6 +151,7 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
       Number(data.output_value),
       selectedUtxo,
       selectedWallet,
+      maxSats,
       feeRate
     );
     if (result.status === "error") {
@@ -157,12 +160,13 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
     } else if (result.status === "success") {
       setPSBT(result.data.psbt);
       setResult(result.data);
-      Mixpanel.track("AddPaddingPSBTGenerated", {
-        data,
-        saleData,
-        psbt: result.data.psbt,
-      });
-      //if psbt is present and a wallet has been selected, it will request signature
+      console.log(result.data, 'PSBT GENERATED')
+      // Mixpanel.track("AddPaddingPSBTGenerated", {
+      //   data,
+      //   saleData,
+      //   psbt: result.data.psbt,
+      // });
+      // //if psbt is present and a wallet has been selected, it will request signature
       if (result.data.psbt && selectedWallet) {
         await signWithAvailableWallet(selectedWallet, result.data.psbt);
       }
@@ -177,7 +181,6 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
         result = await signTx({
           hex: base64ToHex(psbt),
           allowedSighash: [0x01, 0x02, 0x03, 0x81, 0x82, 0x83],
-          signAtIndex: range(bitcoin.Psbt.fromBase64(psbt).inputCount),
         });
       }
 
@@ -203,8 +206,8 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
       network: undefined,
     }).toBase64();
     if (b64 !== psbt) setSignedB64PSBT(b64);
-    console.log(psbt, 'UNSIGNED')
-    console.log(b64, 'SIGNED')
+    // console.log(psbt, 'UNSIGNED')
+    // console.log(b64, 'SIGNED')
   }, [psbt, signedPsbt]);
 
   useEffect(() => {
@@ -233,9 +236,10 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
         }
       }
       const txHex = tempPsbt.extractTransaction().toHex();
-      // console.log(txHex, "TXHEX");
+      console.log(txHex, "TXHEX");
+    
       //TODO: remove below line to enable Broadcasting TX
-      // return 0
+      return 0
       const res = await fetch(`${baseMempoolApiUrl}/tx`, {
         method: "post",
         body: txHex,
@@ -276,7 +280,13 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
       total = total + item.value;
     })
     setTotalbalance(total)
+    setMaxSats(total>20000?20000:total)
   }, [selectedUtxo])
+  
+  useEffect(() => {
+    setPayAddr(data.address)
+    setReceiveAddr(data.address)
+  }, [data])
   
 
   return (
@@ -366,6 +376,20 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                           );
                         })}
                       </div>
+                      <div
+                        className={`center w-full ${
+                          maxSats > totalBalance ? " bg-red-500 " : ""
+                        }`}
+                      >
+                        <p>Use only </p>
+                        <input
+                          className="bg-transparent px-4 py-1 focus:outline-none "
+                          value={maxSats}
+                          onChange={(e) => setMaxSats(Number(e.target.value))}
+                        />
+                        <p>sats</p>
+                      </div>
+                      <MaxAmount amount={maxSats} balance={ totalBalance} setAmount={setMaxSats } />
                       <FeeSlider fee={feeRate} setFee={setFeeRate} />
                       {totalBalance >
                       10000 - Number(data.output_value) + 2000 ? (
@@ -382,9 +406,10 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                   ) : (
                     <div>
                       {selectedWallet == "" ? (
-                        <p>
+                        <p className="text-xs">
                           Make sure inscription address has enough balance to
-                          add padding.
+                          add padding and payment address belongs to same wallet
+                          as the ordinal
                         </p>
                       ) : (
                         <p>
@@ -396,8 +421,12 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                           {" "}
                           payment address :
                         </p>
-                        <p className="bg-brand_blue text-xs px-4 py-1 mb-2">
-                          {payAddr}
+                        <p className="border my-1 text-xs px-4 py-1 mb-2">
+                          <input
+                            onChange={(e) => setPayAddr(e.target.value)}
+                            className="bg-transparent focus:outline-none w-full "
+                            value={payAddr}
+                          />
                         </p>
                         <p className="pt-1 text-xs capitalize">
                           {" "}
@@ -407,7 +436,7 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                           {receiveAddr}
                         </p>
                       </div>
-                      {wallets?.length > 0 && (
+                      {/* {wallets?.length > 0 && (
                         <div className="pt-4">
                           <FormControl>
                             <FormLabel id="demo-radio-buttons-group-label">
@@ -443,7 +472,7 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                             </RadioGroup>
                           </FormControl>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   )}
                   {selectedUtxo?.length > 0 ? (
@@ -509,7 +538,10 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                                     : "Input " + (idx + 1)}
                                 </p>
                                 <p className="text-blue-900 text-sm pt-1 flex items-center justify-center capitalize">
-                                  <span>{item} </span>
+                                  <span>{item.value} </span>
+                                </p>
+                                <p className="text-blue-900 text-sm pt-1 flex items-center justify-center capitalize">
+                                  <span>{shortForm(item.address)} </span>
                                 </p>
                               </div>
                             </div>
@@ -517,16 +549,23 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
                       </div>
                       <div className="outputs w-full md:w-6/12">
                         <p>OUTPUTS</p>
-                        <div className="m-2">
-                          <div className="text-white bg-green-300 rounded-xl text-center p-2">
-                            <p className="text-xs text-green-900">
-                              Inscription
-                            </p>
-                            <p className="text-green-900 text-sm pt-1 flex items-center justify-center capitalize">
-                              <span>{result?.output} </span>
-                            </p>
+                        {result.outputs?.map((item, idx) => (
+                          <div className="m-2" key={item + idx}>
+                            <div className="text-white bg-green-300 rounded-xl text-center p-2">
+                              <p className="text-xs text-green-900">
+                                {idx === 0
+                                  ? "Inscription"
+                                  : "Output " + (idx + 1)}
+                              </p>
+                              <p className="text-green-900 text-sm pt-1 flex items-center justify-center capitalize">
+                                <span>{item.value} </span>
+                              </p>
+                              <p className="text-green-900 text-sm pt-1 flex items-center justify-center capitalize">
+                                <span>{shortForm(item.address)} </span>
+                              </p>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                         <div className="m-2">
                           <div className="text-white bg-brand_black border-2 border-green-500 rounded-xl text-center p-2">
                             <p className="text-xs text-green-200">Fee</p>
