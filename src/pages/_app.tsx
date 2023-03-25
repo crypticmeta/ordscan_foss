@@ -101,60 +101,58 @@ const App: FC<AppProps> = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={darkTheme}>
       <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <Connect authOptions={authOptions}>
-            <AppContext.Provider value={state}>
-              <div className="relative">
-                <Script id="google-analytics" strategy="afterInteractive">
-                  {` window.dataLayer = window.dataLayer || [];
+        <Connect authOptions={authOptions}>
+          <AppContext.Provider value={state}>
+            <div className="relative">
+              <Script id="google-analytics" strategy="afterInteractive">
+                {` window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
 
         gtag('config', 'G-HBEF0K2WF4');`}
-                </Script>
-                <Script
-                  strategy="lazyOnload"
-                  src="https://www.googletagmanager.com/gtag/js?id=G-HBEF0K2WF4"
-                />
-                <Meta
-                  title="Ordscan"
-                  description={`Ordscan is an explorer, marketplace and a one stop solution for all your ordinal needs!`}
-                  image={"https://ordscan.xyz/assets/images/screen.png"}
-                />
-                <Notifications />
-                <Analytics />
-                <div
-                  style={{ zIndex: -1 }}
-                  className="fixed top-0 bottom-0 right-0 left-0"
-                >
-                  {
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                      src="/assets/images/Services.png"
-                      alt="bg"
-                    />
-                  }
-                </div>
-                <div className="relative z-[1] bg-blue-00 ">
-                  <Navbar />
-                  <Input />
-                  {loading ? (
-                    <div className="center min-h-[50vh]">
-                      <Loading />
-                    </div>
-                  ) : (
-                    <Component {...pageProps} />
-                  )}
-                </div>
+              </Script>
+              <Script
+                strategy="lazyOnload"
+                src="https://www.googletagmanager.com/gtag/js?id=G-HBEF0K2WF4"
+              />
+              <Meta
+                title="Ordscan"
+                description={`Ordscan is an explorer, marketplace and a one stop solution for all your ordinal needs!`}
+                image={"https://ordscan.xyz/assets/images/screen.png"}
+              />
+              <Notifications />
+              <Analytics />
+              <div
+                style={{ zIndex: -1 }}
+                className="fixed top-0 bottom-0 right-0 left-0"
+              >
+                {
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                    src="/assets/images/Services.png"
+                    alt="bg"
+                  />
+                }
               </div>
-            </AppContext.Provider>
-          </Connect>
-        </PersistGate>
+              <div className="relative z-[1] bg-blue-00 ">
+                <Navbar />
+                <Input />
+                {loading ? (
+                  <div className="center min-h-[50vh]">
+                    <Loading />
+                  </div>
+                ) : (
+                  <Component {...pageProps} />
+                )}
+              </div>
+            </div>
+          </AppContext.Provider>
+        </Connect>
       </Provider>
     </ThemeProvider>
   );
