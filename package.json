@@ -50,6 +50,7 @@
     "nextjs-cors": "^2.1.2",
     "nodemailer": "^6.9.1",
     "nostr-tools": "^1.7.1",
+    "puppeteer": "^19.8.0",
     "react": "^18.2.0",
     "react-csv": "^2.2.2",
     "react-dom": "^18.2.0",

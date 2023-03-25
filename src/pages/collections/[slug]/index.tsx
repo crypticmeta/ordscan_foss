@@ -1,26 +1,43 @@
 import React from 'react'
 import CollectionPage from 'components/Collections/CollectionsPage'
-function Index() {
+import Meta from 'components/Layout/Meta';
+function Index(props) {
+  console.log(props.data.data, 'PROPS')
   return (
-    <CollectionPage/>
-  )
+    <>
+      <Meta
+        title={`${props.data?.data?.collections[0]?.name} | Ordscan`}
+        description={`${props.data?.data?.collections[0]?.description}`}
+        url={`${process.env.NEXT_PUBLIC_SITE_URL}/search/${props.data?.data?.collections[0]?.slug}`}
+      />
+      <CollectionPage data={props.data} />
+    </>
+  );
 }
 
 // This function gets called at build time on server-side.
 // It may be called again, on a serverless function, if
 // revalidation is enabled and a new request comes in
-export async function getStaticProps() {
+export async function getStaticProps(ctx) {
+  let collectionData = {};
 //  const res: any = await fetch(`https://ordapi.xyz/feed`);
-  const posts = {}
+  try {
+    const slug = ctx.params.slug;
+    const res: any = await fetch(`${process.env.NEXT_PUBLIC_API}/collection?slug=${slug}&_limit=1`);
+    collectionData = await res.json();
+
+    // // Get the paths we want to pre-render based on posts
+    // paths = posts.data.collections.map((collection, idx) => ({
+    //   params: { slug: collection.slug },
+    // }));
+  } catch (e) {}
 
   return {
-    props: {
-      posts,
-    },
+    props: {data: collectionData},
     // Next.js will attempt to re-generate the page:
     // - When a request comes in
-    // - At most once every 10 seconds
-    revalidate: 10, // In seconds
+    // - At most once every 1000 seconds
+    revalidate: 1000, // In seconds
   }
 }
 // This function gets called at build time on server-side.

@@ -16,18 +16,11 @@ import { RootState } from "stores";
 import { satToBtc } from "utils";
 import { ImSphere } from "react-icons/im";
 import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Tooltip } from "@mui/material";
-function CollectionPage() {
+function CollectionPage({ data}) {
   const orderbook = useSelector(
     (state: RootState) => state.orderbook.orderbook
   );
   const router = useRouter();
-  const headers = [
-    { label: "Name", key: "name" },
-    { label: "Inscription Number", key: "number" },
-    { label: "Inscription ID", key: "id" },
-    { label: "Ordscan URL", key: "url" },
-  ];
-  const [downloadData, setDownloadData] = useState([]);
   const [collection, setCollection] = useState<Collection>(null);
   const [inscriptions, setInscriptions] = useState([]);
   const [inscripted, setInscripted] = useState(0);
@@ -120,8 +113,7 @@ function CollectionPage() {
           id: item.id,
           url: "https://ordscan/search/" + item.id,
         });
-      });
-      setDownloadData(tempData);
+      }); 
     }
   }, [inscriptions]);
 
