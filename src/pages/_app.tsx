@@ -118,7 +118,7 @@ const App: FC<AppProps> = ({ Component, pageProps }) => {
               <Meta
                 title="Ordscan"
                 description={`Ordscan is an explorer, marketplace and a one stop solution for all your ordinal needs!`}
-                image={"https://ordscan.xyz/assets/images/screen.png"}
+                url={"https://ordscan.xyz"}
               />
               <Notifications />
               <Analytics />

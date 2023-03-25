@@ -33,7 +33,7 @@ function Id({ data }) {
           description={`Inscription #${data.inscription_number} is ${
             data?.content_type?.split("/")[0] === "image" ? "an " : "a"
           } ${data?.content_type?.split("/")[0]} held by ${data.address} wallet`}
-          image={`${process.env.NEXT_PUBLIC_PROVIDER}/content/${data.id}`}
+          url={`${process.env.NEXT_PUBLIC_URL}/search/${data.id}`}
         />
         <Ordinal data={data} />
       </div>
