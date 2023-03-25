@@ -32,8 +32,10 @@ function Id({ data }) {
           title={`Ordscan | Inscription #${data.inscription_number}`}
           description={`Inscription #${data.inscription_number} is ${
             data?.content_type?.split("/")[0] === "image" ? "an " : "a"
-          } ${data?.content_type?.split("/")[0]} held by ${data.address} wallet`}
-          url={`${process.env.NEXT_PUBLIC_URL}/search/${data.id}`}
+          } ${data?.content_type?.split("/")[0]} held by ${
+            data.address
+          } wallet`}
+          url={`${process.env.NEXT_PUBLIC_SITE_URL}/search/${data.id}`}
         />
         <Ordinal data={data} />
       </div>
