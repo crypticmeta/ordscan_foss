@@ -8,7 +8,7 @@ function Index(props) {
       <Meta
         title={`${props.data?.data?.collections[0]?.name} | Ordscan`}
         description={`${props.data?.data?.collections[0]?.description}`}
-        url={`${process.env.NEXT_PUBLIC_SITE_URL}/search/${props.data?.data?.collections[0]?.slug}`}
+        url={`${process.env.NEXT_PUBLIC_SITE_URL}/collections/${props.data?.data?.collections[0]?.slug}`}
       />
       <CollectionPage data={props.data} />
     </>

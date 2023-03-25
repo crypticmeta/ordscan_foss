@@ -47,9 +47,9 @@ function Meta({ title, description, url }) {
       <meta
         key={"og:image"}
         property="og:image"
-        content={`https://ordscan.xyz/api/generate-image?url=${encodeURIComponent(
-          url
-        )}`}
+        content={`${
+          process.env.NEXT_PUBLIC_API
+        }/generate-image?url=${encodeURIComponent(url)}`}
       />
       <meta key={"og:url"} property="og:url" content={url} />
       <meta key={"og:site_name"} property="og:site_name" content="Ordscan" />
@@ -70,9 +70,9 @@ function Meta({ title, description, url }) {
       <meta
         key={"twitter:image"}
         name="twitter:image"
-        content={`https://ordscan.xyz/api/generate-image?url=${encodeURIComponent(
-          url
-        )}`}
+        content={`${
+          process.env.NEXT_PUBLIC_API
+        }/generate-image?url=${encodeURIComponent(url)}`}
       />
       <meta key={"twitter:url"} name="twitter:url" content={url} />
       <meta name="twitter:cta" content="View on Ordscan" />
