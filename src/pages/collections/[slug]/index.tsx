@@ -6,7 +6,7 @@ function Index(props) {
   return (
     <>
       <Meta
-        title={`${props.data?.data?.collections[0]?.name} | Ordscan`}
+        title={`${props.data?.data?.collections[0]?.name} | Ordinal Novus`}
         description={`${props.data?.data?.collections[0]?.description}`}
         url={`${process.env.NEXT_PUBLIC_SITE_URL}/collections/${props.data?.data?.collections[0]?.slug}`}
       />

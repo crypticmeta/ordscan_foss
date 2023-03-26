@@ -111,7 +111,7 @@ function CollectionPage({ data}) {
           name: item.name,
           number: item.number,
           id: item.id,
-          url: "https://ordscan/search/" + item.id,
+          url: "https://ordinalnovus.com/search/" + item.id,
         });
       }); 
     }

@@ -50,7 +50,7 @@ function Orderbook() {
     const latestOrders = [];
     let flagged = [];
     const flaggedCache =
-      localStorage.getItem("ordscan-flagged-inscriptions") || null;
+      localStorage.getItem("ordinalnovus-flagged-inscriptions") || null;
     const parsedFlagged = JSON.parse(flaggedCache);
     if (
       new Date().valueOf() - Number(parsedFlagged?.timestamp) > 3600000 ||
@@ -64,7 +64,7 @@ function Orderbook() {
             flagged.push(item.id);
           });
           localStorage.setItem(
-            "ordscan-flagged-inscriptions",
+            "ordinalnovus-flagged-inscriptions",
             JSON.stringify({
               inscriptions: flagged,
               timestamp: new Date().valueOf(),

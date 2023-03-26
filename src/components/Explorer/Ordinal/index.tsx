@@ -438,7 +438,7 @@ function Ordinal({ data }: OrdinalProp): JSX.Element {
             <>
               <div className="w-6/12 md:w-4/12 xl:w-3/12  p-2">
                 <div className="text-white border-brand_red border-2 rounded-xl bg-brand_red text-center p-2">
-                  <p className="text-xs text-red-200">Ordscan Link</p>
+                  <p className="text-xs text-red-200">Ordinalnovus Link</p>
                   <p className=" text-sm pt-1 flex items-center justify-center">
                     <span>Copy</span>
                     <AiOutlineCopy

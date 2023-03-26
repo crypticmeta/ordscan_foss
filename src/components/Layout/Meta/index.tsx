@@ -2,33 +2,12 @@ import Head from "next/head";
 import React, { useEffect, useState } from "react";
 
 function Meta({ title, description, url }) {
-  // const [image, setImage] = useState(null);
-
-  // // Fetch the screenshot of the URL using the provided API
-  // useEffect(() => {
-  //   async function generateImage() {
-  //     try {
-  //       const response = await fetch(
-  //         `/api/generate-image?url=${encodeURIComponent(url)}`
-  //       );
-  //       if (response.ok) {
-  //         const blob = await response.blob();
-  //         console.log(response, 'BLOB')
-  //         const imageUrl = URL.createObjectURL(blob);
-  //         console.log(imageUrl, 'URL')
-  //         setImage(imageUrl);
-  //       }
-  //     } catch (error) {
-  //       console.error("Error generating image:", error);
-  //     }
-  //   }
-  //   generateImage();
-  // }, [url]);
 
   return (
     <Head>
       {/* Basic meta tags */}
       <title key={"title"}>{title}</title>
+      <meta name="keywords" content="OrdinalNovus, NFT, non-fungible tokens, Bitcoin, ordinals, inscriptions, marketplace, explorer, digital art, blockchain, NFT trading, NFT collecting"/>
       <link rel="shortcut icon" href="/favicon.ico" />
       <meta charSet="utf-8" />
       <meta key={"description"} name="description" content={description} />
@@ -52,7 +31,11 @@ function Meta({ title, description, url }) {
         }/generate-image?url=${encodeURIComponent(url)}`}
       />
       <meta key={"og:url"} property="og:url" content={url} />
-      <meta key={"og:site_name"} property="og:site_name" content="Ordscan" />
+      <meta
+        key={"og:site_name"}
+        property="og:site_name"
+        content="Ordinalnovus"
+      />
 
       {/* Twitter cards */}
       <meta
@@ -60,7 +43,7 @@ function Meta({ title, description, url }) {
         name="twitter:card"
         content="summary_large_image"
       />
-      <meta key={"twitter:site"} name="twitter:site" content="@ordscanxyz" />
+      <meta key={"twitter:site"} name="twitter:site" content="@OrdinalNovus" />
       <meta key={"twitter:title"} name="twitter:title" content={title} />
       <meta
         key={"twitter:description"}
@@ -75,7 +58,7 @@ function Meta({ title, description, url }) {
         }/generate-image?url=${encodeURIComponent(url)}`}
       />
       <meta key={"twitter:url"} name="twitter:url" content={url} />
-      <meta name="twitter:cta" content="View on Ordscan" />
+      <meta name="twitter:cta" content="View on Ordinalnovus" />
     </Head>
   );
 }

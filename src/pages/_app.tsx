@@ -116,9 +116,9 @@ const App: FC<AppProps> = ({ Component, pageProps }) => {
                 src="https://www.googletagmanager.com/gtag/js?id=G-HBEF0K2WF4"
               />
               <Meta
-                title="Ordscan"
-                description={`Ordscan is an explorer, marketplace and a one stop solution for all your ordinal needs!`}
-                url={"https://ordscan.xyz"}
+                title="Ordinal Novus"
+                description={`Explore, trade, and showcase unique Bitcoin-based ordinals and inscriptions on OrdinalNovus, the ultimate platform for NFT enthusiasts, collectors, and creators.`}
+                url={"https://ordinalnovus.com"}
               />
               <Notifications />
               <Analytics />

@@ -171,7 +171,7 @@ function Sale({ data, setSaleData, saleData }: OrdinalProp): JSX.Element {
           ["m", JSON.stringify(data.inscription_number)], // Inscription number
           ["u", data.output], // Inscription UTXO
           ["s", JSON.stringify(btcToSat(Number(price)))], // Price in sats
-          ["x", "ordscan"], // Exchange name (e.g. "openordex")
+          ["x", "ordinalnovus"], // Exchange name (e.g. "openordex")
         ],
         content: signedPsbt,
       };
@@ -185,7 +185,7 @@ function Sale({ data, setSaleData, saleData }: OrdinalProp): JSX.Element {
          inscription_id: data.id,
          inscription_output: data.output,
          price: btcToSat(Number(price)),
-         marketplace: "Ordscan",
+         marketplace: "Ordinalnovus",
          signedPsbt,
          event_id: getEventHash(event),
       };
@@ -270,7 +270,7 @@ function Sale({ data, setSaleData, saleData }: OrdinalProp): JSX.Element {
   }, [psbt, selectedWallet, signedTx]);
 
   useEffect(() => {
-    //converts available signedHePSBT to Base64 format for easy copy and ordscan, openordex link
+    //converts available signedHePSBT to Base64 format for easy copy and ordinalnovus, openordex link
     if (signedTx && psbt) {
       signedPsbtDataToB64();
     }

@@ -29,7 +29,7 @@ function Id({ data }) {
     return (
       <div className="custom-container   h-screen">
         <Meta
-          title={`Ordscan | Inscription #${data.inscription_number}`}
+          title={`Ordinal Novus | Inscription #${data.inscription_number}`}
           description={`Inscription #${data.inscription_number} is ${
             data?.content_type?.split("/")[0] === "image" ? "an " : "a"
           } ${data?.content_type?.split("/")[0]} held by ${

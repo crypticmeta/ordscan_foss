@@ -57,8 +57,8 @@ export function useAuth() {
     onFinish,
     onCancel,
     appDetails: {
-      name: 'Ordscan',
-      icon: 'https://ordscan.xyz/favicon.ico',
+      name: 'Ordinal Novus',
+      icon: 'https://ordinalnovus.com/favicon.ico',
     },
   };
   return {

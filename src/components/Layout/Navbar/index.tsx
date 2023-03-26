@@ -37,7 +37,7 @@ function Navbar() {
     <div className="text-white flex justify-between w-full custom-container text-3xl">
       <div className="flex">
         <Link href="/" >
-          <p className="text-brand_red">Ordscan</p>
+          <p className="text-brand_red">Ordinal Novus</p>
         </Link>
         <a target="#" href="https://blokmoon.com">
           <span className="text-xs pl-2">By Blokmoon</span>
@@ -54,12 +54,12 @@ function Navbar() {
         className=" fixed right-0 top-0 bottom-0 z-50 min-h-screen w-10/12 md:w-6/12 lg:w-4/12  bg-brand_secondary transition-all p-6  duration-700"
       >
         <div className="flex text-white items-center space-x-8">
-          <p className=" text-2xl md:text-3xl font-extrabold">Ordscan</p>
+          <p className=" text-2xl md:text-3xl font-extrabold">OrdinalNovus</p>
           <div className="flex space-x-4 text-2xl md:text-3xl ">
             <Link
               onClick={() => setOpen(false)}
               target="#"
-              href="https://twitter.com/ordscanxyz"
+              href="https://twitter.com/OrdinalNovus"
             >
               <BsTwitter />
             </Link>

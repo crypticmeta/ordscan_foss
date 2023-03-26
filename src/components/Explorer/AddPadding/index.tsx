@@ -211,7 +211,7 @@ function Padding({ data, saleData }: OrdinalProp): JSX.Element {
   }, [psbt, signedPsbt]);
 
   useEffect(() => {
-    //converts available signedHePSBT to Base64 format for easy copy and ordscan, openordex link
+    //converts available signedHePSBT to Base64 format for easy copy and ordinalnovus, openordex link
     if (signedPsbt && psbt ) {
       signedPsbtDataToB64();
     }
